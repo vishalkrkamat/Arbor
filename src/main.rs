@@ -4,15 +4,29 @@ use crossterm::{
     style::{Color, Print, ResetColor, SetBackgroundColor, SetForegroundColor},
 };
 use ratatui::{
-    layout::{Constraint, Layout, Rect},
+    layout::{Constraint, Layout},
     style::{Style, Stylize},
-    widgets::{Block, List, ListDirection, ListItem, Paragraph},
+    widgets::{Block, List, ListDirection, ListItem},
     DefaultTerminal, Frame,
 };
 use std::io::Error;
 use std::{fs, io, io::Write, path::PathBuf};
 use walkdir::WalkDir;
 
+enum Fsys {
+    File { name: String },
+    Direc { name: String, subdir: Vec<Fsys> },
+}
+impl Fsys {
+    fn read() -> io::Result<()> {
+        const ROOT: &str = ".";
+        for entry in fs::read_dir(ROOT)? {
+            let entry = entry?;
+            println!("ENry is {entry:?}");
+        }
+        Ok(())
+    }
+}
 fn main() -> io::Result<()> {
     let terminal = ratatui::init();
     let result = run(terminal);
@@ -32,8 +46,8 @@ fn run(mut terminal: DefaultTerminal) -> Result<(), Error> {
     Ok(())
 }
 fn render(frame: &mut Frame) {
-    let fed = ls("/".to_string());
-    println!("{fed:?}");
+    //let fed = list_dir("/".to_string(), 3);
+    //   println!("{fed:?}");
     let mainlay = Layout::vertical([
         Constraint::Length(1),
         Constraint::Min(1),
@@ -47,7 +61,7 @@ fn render(frame: &mut Frame) {
     ])
     .split(mainlay[1]);
 
-    let chared = ["hell", "heleddd", "ok df", "hekfd", "jfkej"];
+    let chared = vec!["hell", "heleddd", "ok df", "hekfd", "jfkej"];
     let chare2 = ["file", "file3", "file4", "file5", "file6"];
 
     let chare3 = ["file", "file3", "hello", "file4", "file5", "file6"];
