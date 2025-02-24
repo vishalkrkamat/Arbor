@@ -26,6 +26,11 @@ struct FileManagerState {
     selected_index: usize,               // Which item in current_items is selected
 }
 
+//impl FileManagerState{
+//   fn new(init: ) -> Self{
+//}
+//}
+
 fn main() -> std::io::Result<()> {
     let terminal = ratatui::init();
     let result = run(terminal);
@@ -48,10 +53,13 @@ fn run(mut terminal: DefaultTerminal) -> io::Result<()> {
     Ok(())
 }
 
-fn list_dir(p: &str) -> std::io::Result<Vec<ListsItem>> {
+fn list_dir(p: &PathBuf) -> std::io::Result<Vec<ListsItem>> {
     let mut items = Vec::new();
     for entry in fs::read_dir(p)? {
         let entry = entry?;
+        //let entry_path = entry.path();
+        //let parent_entry = entry_path.parent().unwrap();
+        // println!("{:?}", parent_entry);
         let meta = entry.metadata()?;
         let file_type = if meta.is_dir() {
             ItemType::Dir
@@ -63,13 +71,20 @@ fn list_dir(p: &str) -> std::io::Result<Vec<ListsItem>> {
             item_type: file_type,
         };
         items.push(item);
+
+        //let filestate = FileManagerState {
+        //   parent_dir: Some(parent_entry.to_string_lossy().to_string()),
+        //  current_dir: entry_path.to_string_lossy().to_string(), // The path you are currently in
+        // current_items: items,
+        // };
+        //  add filemanager state
     }
     Ok(items)
 }
-fn render(f: &mut Frame) {
-    let tes = list_dir(".").unwrap();
 
-    let list_items: Vec<ListItem> = tes
+fn render(f: &mut Frame) {
+    let current = list_dir(&PathBuf::from(".")).unwrap();
+    let list_items: Vec<ListItem> = current
         .iter()
         .map(|item| {
             let display = match item.item_type {
