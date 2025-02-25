@@ -145,7 +145,7 @@ fn render(f: &mut Frame) {
                 ItemType::Dir => format!("📁 {}", item.name),
                 ItemType::File => format!("📄 {}", item.name),
             };
-            ratatui::widgets::ListItem::new(display)
+            ListItem::new(display)
         })
         .collect();
     let list_parent_items: Vec<ListItem> = parent_files
@@ -155,7 +155,7 @@ fn render(f: &mut Frame) {
                 ItemType::Dir => format!("📁 {}", item.name),
                 ItemType::File => format!("📄 {}", item.name),
             };
-            ratatui::widgets::ListItem::new(display)
+            ListItem::new(display)
         })
         .collect();
 
