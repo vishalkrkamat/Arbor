@@ -20,6 +20,7 @@ struct ListsItem {
 
 #[derive(Debug)]
 struct FileManagerState {
+    parent_items: Vec<ListsItem>,
     parent_dir: Option<PathBuf>,   // For example, the parent's path
     current_dir: PathBuf,          // The path you are currently in
     current_items: Vec<ListsItem>, // Items in the current directory
@@ -30,15 +31,20 @@ struct FileManagerState {
 impl FileManagerState {
     fn new(star_dir: &PathBuf) -> Self {
         let files = list_dir(&star_dir).unwrap();
-        let parent = star_dir.parent().unwrap();
+        let parent_dir = star_dir.parent().map(|p| p.to_path_buf());
+
+        let pathdw = parent_dir.clone().unwrap();
+        let parent_items = list_dir(&pathdw).unwrap();
         let mut state = ListState::default();
         Self {
+            parent_items,
             current_items: files,
             current_dir: star_dir.to_path_buf(),
-            parent_dir: Some(parent.to_path_buf()),
+            parent_dir,
             selected_index: state,
         }
     }
+
     fn list_files(f: &Vec<ListsItem>) {
         let list_items: Vec<ListItem> = f
             .iter()
@@ -109,9 +115,6 @@ fn list_dir(p: &PathBuf) -> std::io::Result<Vec<ListsItem>> {
     let mut items = Vec::new();
     for entry in fs::read_dir(p)? {
         let entry = entry?;
-        //let entry_path = entry.path();
-        //let parent_entry = entry_path.parent().unwrap();
-        // println!("{:?}", parent_entry);
         let meta = entry.metadata()?;
         let file_type = if meta.is_dir() {
             ItemType::Dir
@@ -131,7 +134,8 @@ fn render(f: &mut Frame) {
     let start_dir = PathBuf::from(".");
     let absolute_path = start_dir.canonicalize().unwrap();
     let state = FileManagerState::new(&absolute_path);
-    // println!("{:?}", state);
+    //println!("{:?}", state);
+    let parent_files = state.parent_items;
     let current_files = state.current_items;
     let current_directory = state.current_dir.to_string_lossy();
     let list_items: Vec<ListItem> = current_files
@@ -144,6 +148,17 @@ fn render(f: &mut Frame) {
             ratatui::widgets::ListItem::new(display)
         })
         .collect();
+    let list_parent_items: Vec<ListItem> = parent_files
+        .iter()
+        .map(|item| {
+            let display = match item.item_type {
+                ItemType::Dir => format!("📁 {}", item.name),
+                ItemType::File => format!("📄 {}", item.name),
+            };
+            ratatui::widgets::ListItem::new(display)
+        })
+        .collect();
+
     let mainlay = Layout::vertical([
         Constraint::Length(1),
         Constraint::Min(1),
@@ -153,12 +168,14 @@ fn render(f: &mut Frame) {
 
     let list = List::new(list_items).block(Block::default().borders(Borders::ALL));
 
+    let list_parent_files =
+        List::new(list_parent_items).block(Block::default().borders(Borders::ALL));
     let layout = Layout::default()
         .direction(Direction::Horizontal)
         .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(mainlay[1]);
 
     f.render_widget(current_directory.to_string(), mainlay[0]);
-    f.render_widget("tes", layout[0]);
+    f.render_widget(list_parent_files, layout[0]);
     f.render_widget(list, layout[1]);
 }
