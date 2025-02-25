@@ -1,7 +1,7 @@
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::prelude::*;
 use ratatui::{
-    widgets::{Block, List, ListItem},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
     DefaultTerminal, Frame,
 };
 use std::path::{Path, PathBuf};
@@ -18,18 +18,69 @@ struct ListsItem {
     item_type: ItemType,
 }
 
+#[derive(Debug)]
 struct FileManagerState {
-    parent_dir: Option<String>,          // For example, the parent's path
-    current_dir: String,                 // The path you are currently in
-    current_items: Vec<ListsItem>,       // Items in the current directory
-    child_items: Option<Vec<ListsItem>>, // Items in the selected subdirectory (if any)
-    selected_index: usize,               // Which item in current_items is selected
+    parent_dir: Option<PathBuf>,   // For example, the parent's path
+    current_dir: PathBuf,          // The path you are currently in
+    current_items: Vec<ListsItem>, // Items in the current directory
+    //child_items: Option<Vec<ListsItem>>, // Items in the selected subdirectory (if any)
+    selected_index: ListState, // Which item in current_items is selected
 }
 
-//impl FileManagerState{
-//   fn new(init: ) -> Self{
-//}
-//}
+impl FileManagerState {
+    fn new(star_dir: &PathBuf) -> Self {
+        let files = list_dir(&star_dir).unwrap();
+        let parent = star_dir.parent().unwrap();
+        let mut state = ListState::default();
+        Self {
+            current_items: files,
+            current_dir: star_dir.to_path_buf(),
+            parent_dir: Some(parent.to_path_buf()),
+            selected_index: state,
+        }
+    }
+    fn list_files(f: &Vec<ListsItem>) {
+        let list_items: Vec<ListItem> = f
+            .iter()
+            .map(|item| {
+                let display = match item.item_type {
+                    ItemType::Dir => format!("📁 {}", item.name),
+                    ItemType::File => format!("📄 {}", item.name),
+                };
+                ratatui::widgets::ListItem::new(display)
+            })
+            .collect();
+    }
+    fn input(state: &mut ListState, item_count: usize) {
+        if let event::Event::Key(keyevent) = event::read().unwrap() {
+            let current = state.selected().unwrap_or(0);
+            let new_index = match keyevent.code {
+                KeyCode::Up => {
+                    if current >= item_count - 1 {
+                        0
+                    } else {
+                        current + 1
+                    }
+                }
+                KeyCode::Down => {
+                    if current == item_count - 1 {
+                        0
+                    } else {
+                        current + 1
+                    }
+                }
+                _ => current,
+            };
+            state.select(Some(new_index));
+        }
+        fn up() {
+            todo!()
+        }
+        fn down() {
+            todo!()
+        }
+    }
+}
 
 fn main() -> std::io::Result<()> {
     let terminal = ratatui::init();
@@ -44,9 +95,10 @@ fn run(mut terminal: DefaultTerminal) -> io::Result<()> {
         match event::read()? {
             Event::Key(key) => match key.code {
                 KeyCode::Char('q') => break,
+                //KeyCode::Char('k') => FileManagerState.up(),
+                //KeyCode::Char('j') => FileManagerState.down(),
                 _ => {}
             },
-
             _ => {}
         }
     }
@@ -71,20 +123,18 @@ fn list_dir(p: &PathBuf) -> std::io::Result<Vec<ListsItem>> {
             item_type: file_type,
         };
         items.push(item);
-
-        //let filestate = FileManagerState {
-        //   parent_dir: Some(parent_entry.to_string_lossy().to_string()),
-        //  current_dir: entry_path.to_string_lossy().to_string(), // The path you are currently in
-        // current_items: items,
-        // };
-        //  add filemanager state
     }
     Ok(items)
 }
 
 fn render(f: &mut Frame) {
-    let current = list_dir(&PathBuf::from(".")).unwrap();
-    let list_items: Vec<ListItem> = current
+    let start_dir = PathBuf::from(".");
+    let absolute_path = start_dir.canonicalize().unwrap();
+    let state = FileManagerState::new(&absolute_path);
+    // println!("{:?}", state);
+    let current_files = state.current_items;
+    let current_directory = state.current_dir.to_string_lossy();
+    let list_items: Vec<ListItem> = current_files
         .iter()
         .map(|item| {
             let display = match item.item_type {
@@ -94,13 +144,21 @@ fn render(f: &mut Frame) {
             ratatui::widgets::ListItem::new(display)
         })
         .collect();
+    let mainlay = Layout::vertical([
+        Constraint::Length(1),
+        Constraint::Min(1),
+        Constraint::Length(1),
+    ])
+    .split(f.area());
 
-    let list = List::new(list_items);
+    let list = List::new(list_items).block(Block::default().borders(Borders::ALL));
+
     let layout = Layout::default()
         .direction(Direction::Horizontal)
         .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
-        .split(f.area());
+        .split(mainlay[1]);
 
-    f.render_widget(list, layout[0]);
-    f.render_widget("ok see", layout[1]);
+    f.render_widget(current_directory.to_string(), mainlay[0]);
+    f.render_widget("tes", layout[0]);
+    f.render_widget(list, layout[1]);
 }
