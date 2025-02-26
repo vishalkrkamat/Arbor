@@ -45,7 +45,7 @@ impl FileManagerState {
         }
     }
 
-    fn list_files(f: &Vec<ListsItem>) {
+    fn convert_to_listitems(f: &Vec<ListsItem>) -> io::Result<Vec<ListItem>> {
         let list_items: Vec<ListItem> = f
             .iter()
             .map(|item| {
@@ -53,10 +53,12 @@ impl FileManagerState {
                     ItemType::Dir => format!("📁 {}", item.name),
                     ItemType::File => format!("📄 {}", item.name),
                 };
-                ratatui::widgets::ListItem::new(display)
+                ListItem::new(display)
             })
             .collect();
+        Ok(list_items)
     }
+
     fn input(state: &mut ListState, item_count: usize) {
         if let event::Event::Key(keyevent) = event::read().unwrap() {
             let current = state.selected().unwrap_or(0);
@@ -134,30 +136,14 @@ fn render(f: &mut Frame) {
     let start_dir = PathBuf::from(".");
     let absolute_path = start_dir.canonicalize().unwrap();
     let state = FileManagerState::new(&absolute_path);
-    //println!("{:?}", state);
     let parent_files = state.parent_items;
     let current_files = state.current_items;
+    let list_current_items: Vec<ListItem> =
+        FileManagerState::convert_to_listitems(&current_files).unwrap();
+
+    let list_parent_items: Vec<ListItem> =
+        FileManagerState::convert_to_listitems(&parent_files).unwrap();
     let current_directory = state.current_dir.to_string_lossy();
-    let list_items: Vec<ListItem> = current_files
-        .iter()
-        .map(|item| {
-            let display = match item.item_type {
-                ItemType::Dir => format!("📁 {}", item.name),
-                ItemType::File => format!("📄 {}", item.name),
-            };
-            ListItem::new(display)
-        })
-        .collect();
-    let list_parent_items: Vec<ListItem> = parent_files
-        .iter()
-        .map(|item| {
-            let display = match item.item_type {
-                ItemType::Dir => format!("📁 {}", item.name),
-                ItemType::File => format!("📄 {}", item.name),
-            };
-            ListItem::new(display)
-        })
-        .collect();
 
     let mainlay = Layout::vertical([
         Constraint::Length(1),
@@ -166,7 +152,7 @@ fn render(f: &mut Frame) {
     ])
     .split(f.area());
 
-    let list = List::new(list_items).block(Block::default().borders(Borders::ALL));
+    let list = List::new(list_current_items).block(Block::default().borders(Borders::ALL));
 
     let list_parent_files =
         List::new(list_parent_items).block(Block::default().borders(Borders::ALL));
