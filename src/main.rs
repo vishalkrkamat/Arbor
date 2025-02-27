@@ -30,19 +30,31 @@ struct FileManagerState {
 
 impl FileManagerState {
     fn new(star_dir: &PathBuf) -> Self {
-        let files = list_dir(&star_dir).unwrap();
-        let parent_dir = star_dir.parent().map(|p| p.to_path_buf());
-
-        let pathdw = parent_dir.clone().unwrap();
-        let parent_items = list_dir(&pathdw).unwrap();
-        let state = ListState::default();
+        let (files, parent_dir, parent_items) = Self::get_state_data(star_dir);
         Self {
             parent_items,
             current_items: files,
             current_dir: star_dir.to_path_buf(),
             parent_dir,
-            selected_index: state,
+            selected_index: ListState::default(),
         }
+    }
+    fn get_state_data(start: &PathBuf) -> (Vec<ListsItem>, Option<PathBuf>, Vec<ListsItem>) {
+        let files = list_dir(&start).unwrap();
+        let parent_dir = start.parent().map(|p| p.to_path_buf());
+        let parent_items = parent_dir
+            .as_ref()
+            .map_or_else(Vec::new, |p| list_dir(p).unwrap());
+        (files, parent_dir, parent_items)
+    }
+
+    fn update_state(&mut self, new_dir: &PathBuf) {
+        let (files, parent_dir, parent_items) = Self::get_state_data(new_dir);
+
+        self.current_dir = new_dir.to_path_buf();
+        self.current_items = files;
+        self.parent_dir = parent_dir;
+        self.parent_items = parent_items;
     }
 
     fn convert_to_listitems(f: &Vec<ListsItem>) -> io::Result<Vec<ListItem>> {
@@ -65,6 +77,11 @@ impl FileManagerState {
         self.selected_index.select_previous();
     }
 
+    fn select(&mut self) {
+        let parent = self.parent_dir.clone().unwrap();
+        self.update_state(&parent);
+    }
+
     fn run(mut terminal: DefaultTerminal, state: &mut FileManagerState) -> io::Result<()> {
         loop {
             terminal.draw(|f| render(f, state))?;
@@ -73,6 +90,7 @@ impl FileManagerState {
                     KeyCode::Char('q') => break,
                     KeyCode::Char('j') => state.down(),
                     KeyCode::Char('k') => state.up(),
+                    KeyCode::Enter => state.select(),
                     _ => {}
                 },
                 _ => {}
@@ -112,6 +130,7 @@ fn list_dir(p: &PathBuf) -> std::io::Result<Vec<ListsItem>> {
 }
 
 fn render(f: &mut Frame, state: &mut FileManagerState) {
+    //println!("{:?}", state);
     let mut ustate = &mut state.selected_index;
     let parent_files = &state.parent_items;
     let current_files = &state.current_items;
