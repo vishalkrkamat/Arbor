@@ -1,7 +1,7 @@
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::prelude::*;
 use ratatui::{
-    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
+    widgets::{Block, Borders, List, ListItem, ListState},
     DefaultTerminal, Frame,
 };
 use std::path::{Path, PathBuf};
@@ -35,7 +35,7 @@ impl FileManagerState {
 
         let pathdw = parent_dir.clone().unwrap();
         let parent_items = list_dir(&pathdw).unwrap();
-        let mut state = ListState::default();
+        let state = ListState::default();
         Self {
             parent_items,
             current_items: files,
@@ -58,59 +58,38 @@ impl FileManagerState {
             .collect();
         Ok(list_items)
     }
+    fn down(&mut self) {
+        self.selected_index.select_next();
+    }
+    fn up(&mut self) {
+        self.selected_index.select_previous();
+    }
 
-    fn input(state: &mut ListState, item_count: usize) {
-        if let event::Event::Key(keyevent) = event::read().unwrap() {
-            let current = state.selected().unwrap_or(0);
-            let new_index = match keyevent.code {
-                KeyCode::Up => {
-                    if current >= item_count - 1 {
-                        0
-                    } else {
-                        current + 1
-                    }
-                }
-                KeyCode::Down => {
-                    if current == item_count - 1 {
-                        0
-                    } else {
-                        current + 1
-                    }
-                }
-                _ => current,
-            };
-            state.select(Some(new_index));
+    fn run(mut terminal: DefaultTerminal, state: &mut FileManagerState) -> io::Result<()> {
+        loop {
+            terminal.draw(|f| render(f, state))?;
+            match event::read()? {
+                Event::Key(key) => match key.code {
+                    KeyCode::Char('q') => break,
+                    KeyCode::Char('j') => state.down(),
+                    KeyCode::Char('k') => state.up(),
+                    _ => {}
+                },
+                _ => {}
+            }
         }
-        fn up() {
-            todo!()
-        }
-        fn down() {
-            todo!()
-        }
+        Ok(())
     }
 }
 
 fn main() -> std::io::Result<()> {
     let terminal = ratatui::init();
-    let result = run(terminal);
+    let start_dir = PathBuf::from(".");
+    let absolute_path = start_dir.canonicalize().unwrap();
+    let mut state = FileManagerState::new(&absolute_path);
+    let result = FileManagerState::run(terminal, &mut state);
     ratatui::restore();
     result
-}
-
-fn run(mut terminal: DefaultTerminal) -> io::Result<()> {
-    loop {
-        terminal.draw(render)?;
-        match event::read()? {
-            Event::Key(key) => match key.code {
-                KeyCode::Char('q') => break,
-                //KeyCode::Char('k') => FileManagerState.up(),
-                //KeyCode::Char('j') => FileManagerState.down(),
-                _ => {}
-            },
-            _ => {}
-        }
-    }
-    Ok(())
 }
 
 fn list_dir(p: &PathBuf) -> std::io::Result<Vec<ListsItem>> {
@@ -132,12 +111,10 @@ fn list_dir(p: &PathBuf) -> std::io::Result<Vec<ListsItem>> {
     Ok(items)
 }
 
-fn render(f: &mut Frame) {
-    let start_dir = PathBuf::from(".");
-    let absolute_path = start_dir.canonicalize().unwrap();
-    let state = FileManagerState::new(&absolute_path);
-    let parent_files = state.parent_items;
-    let current_files = state.current_items;
+fn render(f: &mut Frame, state: &mut FileManagerState) {
+    let mut ustate = &mut state.selected_index;
+    let parent_files = &state.parent_items;
+    let current_files = &state.current_items;
     let list_current_items: Vec<ListItem> =
         FileManagerState::convert_to_listitems(&current_files).unwrap();
 
@@ -152,8 +129,9 @@ fn render(f: &mut Frame) {
     ])
     .split(f.area());
 
-    let list = List::new(list_current_items).block(Block::default().borders(Borders::ALL));
-
+    let list = List::new(list_current_items)
+        .highlight_symbol(">>")
+        .block(Block::default().borders(Borders::ALL));
     let list_parent_files =
         List::new(list_parent_items).block(Block::default().borders(Borders::ALL));
     let layout = Layout::default()
@@ -163,5 +141,5 @@ fn render(f: &mut Frame) {
 
     f.render_widget(current_directory.to_string(), mainlay[0]);
     f.render_widget(list_parent_files, layout[0]);
-    f.render_widget(list, layout[1]);
+    f.render_stateful_widget(list, layout[1], &mut ustate);
 }
