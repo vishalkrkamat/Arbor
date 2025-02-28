@@ -7,12 +7,13 @@ use ratatui::{
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum ItemType {
     File,
     Dir,
 }
-#[derive(Debug)]
+
+#[derive(Debug, Clone)]
 struct ListsItem {
     name: String,
     item_type: ItemType,
@@ -77,9 +78,27 @@ impl FileManagerState {
         self.selected_index.select_previous();
     }
 
-    fn select(&mut self) {
+    fn previous_dir(&mut self) {
         let parent = self.parent_dir.clone().unwrap();
         self.update_state(&parent);
+    }
+
+    fn preview() {
+        todo!()
+    }
+
+    fn next_dir(&self) {
+        let loc = self.selected_index.selected().unwrap();
+        let items = &self.current_items;
+        let selected_file = &items[loc];
+
+        match selected_file.item_type {
+            ItemType::Dir => println!("its dir"),
+            ItemType::File => println!("its file"),
+        };
+        //println!("{:?}", selected_file);
+        //let fie: Vec<ItemType> = items.iter().map(|f| f.item_type.clone()).collect();
+        //println!("{:?}", fie);
     }
 
     fn run(mut terminal: DefaultTerminal, state: &mut FileManagerState) -> io::Result<()> {
@@ -90,7 +109,8 @@ impl FileManagerState {
                     KeyCode::Char('q') => break,
                     KeyCode::Char('j') => state.down(),
                     KeyCode::Char('k') => state.up(),
-                    KeyCode::Enter => state.select(),
+                    KeyCode::Char('h') => state.previous_dir(),
+                    KeyCode::Char('l') => state.next_dir(),
                     _ => {}
                 },
                 _ => {}
