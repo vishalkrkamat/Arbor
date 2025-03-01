@@ -87,18 +87,20 @@ impl FileManagerState {
         todo!()
     }
 
-    fn next_dir(&self) {
+    fn next_dir(&mut self) {
         let loc = self.selected_index.selected().unwrap();
         let items = &self.current_items;
+        let cur_dir = &mut self.current_dir.clone();
         let selected_file = &items[loc];
+        let name = selected_file.name.clone();
 
         match selected_file.item_type {
-            ItemType::Dir => println!("its dir"),
+            ItemType::Dir => {
+                cur_dir.push(name);
+                self.update_state(&cur_dir);
+            }
             ItemType::File => println!("its file"),
         };
-        //println!("{:?}", selected_file);
-        //let fie: Vec<ItemType> = items.iter().map(|f| f.item_type.clone()).collect();
-        //println!("{:?}", fie);
     }
 
     fn run(mut terminal: DefaultTerminal, state: &mut FileManagerState) -> io::Result<()> {
