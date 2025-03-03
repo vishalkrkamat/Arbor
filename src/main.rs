@@ -22,11 +22,11 @@ struct ListsItem {
 #[derive(Debug)]
 struct FileManagerState {
     parent_items: Vec<ListsItem>,
-    parent_dir: Option<PathBuf>,   // For example, the parent's path
-    current_dir: PathBuf,          // The path you are currently in
-    current_items: Vec<ListsItem>, // Items in the current directory
-    //child_items: Option<Vec<ListsItem>>, // Items in the selected subdirectory (if any)
-    selected_index: ListState, // Which item in current_items is selected
+    parent_dir: Option<PathBuf>,         // For example, the parent's path
+    current_dir: PathBuf,                // The path you are currently in
+    current_items: Vec<ListsItem>,       // Items in the current directory
+    child_items: Option<Vec<ListsItem>>, // Items in the selected subdirectory (if any)
+    selected_index: ListState,           // Which item in current_items is selected
 }
 
 impl FileManagerState {
@@ -37,9 +37,11 @@ impl FileManagerState {
             current_items: files,
             current_dir: star_dir.to_path_buf(),
             parent_dir,
+            child_items: Some(vec![]),
             selected_index: ListState::default(),
         }
     }
+
     fn get_state_data(start: &PathBuf) -> (Vec<ListsItem>, Option<PathBuf>, Vec<ListsItem>) {
         let files = list_dir(&start).unwrap();
         let parent_dir = start.parent().map(|p| p.to_path_buf());
@@ -57,7 +59,10 @@ impl FileManagerState {
         self.parent_dir = parent_dir;
         self.parent_items = parent_items;
     }
-
+    fn get_file_update_state(&mut self, items: Vec<ListsItem>) {
+        self.child_items = Some(items);
+        //self.child_items
+    }
     fn convert_to_listitems(f: &Vec<ListsItem>) -> io::Result<Vec<ListItem>> {
         let list_items: Vec<ListItem> = f
             .iter()
@@ -71,11 +76,41 @@ impl FileManagerState {
             .collect();
         Ok(list_items)
     }
+
     fn down(&mut self) {
         self.selected_index.select_next();
+        let loc = self.selected_index.selected().unwrap();
+        let items = &self.current_items;
+        let selected_dir = &items[loc];
+        let current_dir = &self.current_dir;
+        match selected_dir.item_type {
+            ItemType::Dir => {
+                let dir = &items[loc].name;
+                let chilpath = current_dir.join(dir);
+                let sub_files = list_dir(&chilpath).unwrap();
+                self.get_file_update_state(sub_files);
+            }
+            //ItemType::File => Self::preview(),
+            ItemType::File => println!(""),
+        };
     }
+
     fn up(&mut self) {
         self.selected_index.select_previous();
+        let loc = self.selected_index.selected().unwrap();
+        let items = &self.current_items;
+        let selected_dir = &items[loc];
+        let current_dir = &self.current_dir;
+        match selected_dir.item_type {
+            ItemType::Dir => {
+                let dir = &items[loc].name;
+                let chilpath = current_dir.join(dir);
+                let sub_files = list_dir(&chilpath).unwrap();
+                self.get_file_update_state(sub_files);
+            }
+            //ItemType::File => Self::preview(),
+            ItemType::File => println!(""),
+        };
     }
 
     fn previous_dir(&mut self) {
@@ -99,7 +134,7 @@ impl FileManagerState {
                 cur_dir.push(name);
                 self.update_state(&cur_dir);
             }
-            ItemType::File => println!("its file"),
+            ItemType::File => Self::preview(),
         };
     }
 
@@ -156,8 +191,10 @@ fn render(f: &mut Frame, state: &mut FileManagerState) {
     let mut ustate = &mut state.selected_index;
     let parent_files = &state.parent_items;
     let current_files = &state.current_items;
+    let sub_files = &state.child_items.clone().unwrap();
     let list_current_items: Vec<ListItem> =
         FileManagerState::convert_to_listitems(&current_files).unwrap();
+    let list_sub_items: Vec<ListItem> = FileManagerState::convert_to_listitems(&sub_files).unwrap();
 
     let list_parent_items: Vec<ListItem> =
         FileManagerState::convert_to_listitems(&parent_files).unwrap();
@@ -169,18 +206,23 @@ fn render(f: &mut Frame, state: &mut FileManagerState) {
         Constraint::Length(1),
     ])
     .split(f.area());
-
     let list = List::new(list_current_items)
         .highlight_symbol(">>")
         .block(Block::default().borders(Borders::ALL));
     let list_parent_files =
         List::new(list_parent_items).block(Block::default().borders(Borders::ALL));
+    let list_child_fiels = List::new(list_sub_items).block(Block::default().borders(Borders::ALL));
     let layout = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
+        .constraints(vec![
+            Constraint::Percentage(30),
+            Constraint::Percentage(40),
+            Constraint::Percentage(30),
+        ])
         .split(mainlay[1]);
 
     f.render_widget(current_directory.to_string(), mainlay[0]);
     f.render_widget(list_parent_files, layout[0]);
     f.render_stateful_widget(list, layout[1], &mut ustate);
+    f.render_widget(list_child_fiels, layout[2]);
 }
