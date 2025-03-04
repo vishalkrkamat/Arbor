@@ -61,7 +61,6 @@ impl FileManagerState {
     }
     fn get_file_update_state(&mut self, items: Vec<ListsItem>) {
         self.child_items = Some(items);
-        //self.child_items
     }
     fn convert_to_listitems(f: &Vec<ListsItem>) -> io::Result<Vec<ListItem>> {
         let list_items: Vec<ListItem> = f
@@ -76,9 +75,7 @@ impl FileManagerState {
             .collect();
         Ok(list_items)
     }
-
-    fn down(&mut self) {
-        self.selected_index.select_next();
+    fn get_sub_files(&mut self) {
         let loc = self.selected_index.selected().unwrap();
         let items = &self.current_items;
         let selected_dir = &items[loc];
@@ -94,23 +91,14 @@ impl FileManagerState {
             ItemType::File => println!(""),
         };
     }
+    fn down(&mut self) {
+        self.selected_index.select_next();
+        self.get_sub_files();
+    }
 
     fn up(&mut self) {
         self.selected_index.select_previous();
-        let loc = self.selected_index.selected().unwrap();
-        let items = &self.current_items;
-        let selected_dir = &items[loc];
-        let current_dir = &self.current_dir;
-        match selected_dir.item_type {
-            ItemType::Dir => {
-                let dir = &items[loc].name;
-                let chilpath = current_dir.join(dir);
-                let sub_files = list_dir(&chilpath).unwrap();
-                self.get_file_update_state(sub_files);
-            }
-            //ItemType::File => Self::preview(),
-            ItemType::File => println!(""),
-        };
+        self.get_sub_files();
     }
 
     fn previous_dir(&mut self) {
