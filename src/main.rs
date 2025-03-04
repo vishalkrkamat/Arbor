@@ -4,7 +4,7 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, ListState},
     DefaultTerminal, Frame,
 };
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::{fs, io};
 
 #[derive(Debug, Clone)]
@@ -22,10 +22,10 @@ struct ListsItem {
 #[derive(Debug)]
 struct FileManagerState {
     parent_items: Vec<ListsItem>,
-    parent_dir: Option<PathBuf>,         // For example, the parent's path
-    current_dir: PathBuf,                // The path you are currently in
+    parent_dir: Option<PathBuf>,         // The parent's dir
+    current_dir: PathBuf,                // The path currently in
     current_items: Vec<ListsItem>,       // Items in the current directory
-    child_items: Option<Vec<ListsItem>>, // Items in the selected subdirectory (if any)
+    child_items: Option<Vec<ListsItem>>, // Items in the selected subdirectory
     selected_index: ListState,           // Which item in current_items is selected
 }
 
@@ -91,6 +91,7 @@ impl FileManagerState {
             ItemType::File => println!(""),
         };
     }
+
     fn down(&mut self) {
         self.selected_index.select_next();
         self.get_sub_files();
@@ -102,8 +103,9 @@ impl FileManagerState {
     }
 
     fn previous_dir(&mut self) {
-        let parent = self.parent_dir.clone().unwrap();
-        self.update_state(&parent);
+        if let Some(parent) = self.parent_dir.clone() {
+            self.update_state(&parent);
+        }
     }
 
     fn preview() {
@@ -111,19 +113,18 @@ impl FileManagerState {
     }
 
     fn next_dir(&mut self) {
-        let loc = self.selected_index.selected().unwrap();
-        let items = &self.current_items;
-        let cur_dir = &mut self.current_dir.clone();
-        let selected_file = &items[loc];
-        let name = selected_file.name.clone();
-
-        match selected_file.item_type {
-            ItemType::Dir => {
-                cur_dir.push(name);
-                self.update_state(&cur_dir);
+        if let Some(loc) = self.selected_index.selected() {
+            if let Some(selected_file) = self.current_items.get(loc) {
+                match &selected_file.item_type {
+                    ItemType::Dir => {
+                        let mut new_dir = self.current_dir.clone();
+                        new_dir.push(&selected_file.name);
+                        self.update_state(&new_dir);
+                    }
+                    ItemType::File => Self::preview(),
+                }
             }
-            ItemType::File => Self::preview(),
-        };
+        }
     }
 
     fn run(mut terminal: DefaultTerminal, state: &mut FileManagerState) -> io::Result<()> {
