@@ -1,5 +1,6 @@
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::prelude::*;
+use ratatui::widgets::Paragraph;
 use ratatui::{
     widgets::{Block, Borders, List, ListItem, ListState},
     DefaultTerminal, Frame,
@@ -19,14 +20,19 @@ struct ListsItem {
     item_type: ItemType,
 }
 
+#[derive(Debug, Clone)]
+enum Preview {
+    FileContent(String),
+    Directory(Vec<ListsItem>),
+}
 #[derive(Debug)]
 struct FileManagerState {
     parent_items: Vec<ListsItem>,
-    parent_dir: Option<PathBuf>,         // The parent's dir
-    current_dir: PathBuf,                // The path currently in
-    current_items: Vec<ListsItem>,       // Items in the current directory
-    child_items: Option<Vec<ListsItem>>, // Items in the selected subdirectory
-    selected_index: ListState,           // Which item in current_items is selected
+    parent_dir: Option<PathBuf>,   // The parent's dir
+    current_dir: PathBuf,          // The path currently in
+    current_items: Vec<ListsItem>, // Items in the current directory
+    child_items: Preview,          // Items in the selected subdirectory
+    selected_index: ListState,     // Which item in current_items is selected
 }
 
 impl FileManagerState {
@@ -37,7 +43,7 @@ impl FileManagerState {
             current_items: files,
             current_dir: star_dir.to_path_buf(),
             parent_dir,
-            child_items: Some(vec![]),
+            child_items: Preview::Directory(vec![]),
             selected_index: ListState::default(),
         }
     }
@@ -61,7 +67,11 @@ impl FileManagerState {
     }
 
     fn get_file_update_state(&mut self, items: Vec<ListsItem>) {
-        self.child_items = Some(items);
+        self.child_items = Preview::Directory(items);
+    }
+
+    fn update_file_state_file(&mut self, con: String) {
+        self.child_items = Preview::FileContent(con);
     }
 
     fn convert_to_listitems(f: &Vec<ListsItem>) -> io::Result<Vec<ListItem>> {
@@ -88,8 +98,18 @@ impl FileManagerState {
                         let sub_files = list_dir(&chilpath).unwrap();
                         self.get_file_update_state(sub_files);
                     }
-                    //ItemType::File => Self::preview(),
-                    ItemType::File => println!(""),
+                    ItemType::File => {
+                        if let Some(loc) = self.selected_index.selected() {
+                            if let Some(selected_file) = self.current_items.get(loc) {
+                                let current_file =
+                                    self.current_dir.clone().join(selected_file.name.clone());
+                                match fs::read_to_string(current_file) {
+                                    Ok(con) => self.update_file_state_file(con),
+                                    Err(_e) => eprint!("error"),
+                                };
+                            }
+                        }
+                    }
                 };
             }
         }
@@ -111,10 +131,6 @@ impl FileManagerState {
         }
     }
 
-    fn preview() {
-        todo!()
-    }
-
     fn next_dir(&mut self) {
         if let Some(loc) = self.selected_index.selected() {
             if let Some(selected_file) = self.current_items.get(loc) {
@@ -124,7 +140,7 @@ impl FileManagerState {
                         new_dir.push(&selected_file.name);
                         self.update_state(&new_dir);
                     }
-                    ItemType::File => Self::preview(),
+                    ItemType::File => println!(""),
                 }
             }
         }
@@ -179,14 +195,11 @@ fn list_dir(p: &PathBuf) -> std::io::Result<Vec<ListsItem>> {
 }
 
 fn render(f: &mut Frame, state: &mut FileManagerState) {
-    //println!("{:?}", state);
     let mut ustate = &mut state.selected_index;
     let parent_files = &state.parent_items;
     let current_files = &state.current_items;
-    let sub_files = &state.child_items.clone().unwrap();
     let list_current_items: Vec<ListItem> =
         FileManagerState::convert_to_listitems(&current_files).unwrap();
-    let list_sub_items: Vec<ListItem> = FileManagerState::convert_to_listitems(&sub_files).unwrap();
 
     let list_parent_items: Vec<ListItem> =
         FileManagerState::convert_to_listitems(&parent_files).unwrap();
@@ -198,12 +211,13 @@ fn render(f: &mut Frame, state: &mut FileManagerState) {
         Constraint::Length(1),
     ])
     .split(f.area());
+
     let list = List::new(list_current_items)
         .highlight_symbol(">>")
         .block(Block::default().borders(Borders::ALL));
     let list_parent_files =
         List::new(list_parent_items).block(Block::default().borders(Borders::ALL));
-    let list_child_fiels = List::new(list_sub_items).block(Block::default().borders(Borders::ALL));
+
     let layout = Layout::default()
         .direction(Direction::Horizontal)
         .constraints(vec![
@@ -213,8 +227,21 @@ fn render(f: &mut Frame, state: &mut FileManagerState) {
         ])
         .split(mainlay[1]);
 
+    if let Preview::Directory(sub_files) = &state.child_items.clone() {
+        let list_sub_items: Vec<ListItem> =
+            FileManagerState::convert_to_listitems(&sub_files).unwrap();
+
+        let list_child_fiels =
+            List::new(list_sub_items).block(Block::default().borders(Borders::ALL));
+
+        f.render_widget(list_child_fiels, layout[2]);
+    }
+    if let Preview::FileContent(con) = &state.child_items.clone() {
+        let cont = Paragraph::new(String::from(con)).block(Block::default().borders(Borders::ALL));
+        f.render_widget(cont, layout[2]);
+    }
+
     f.render_widget(current_directory.to_string(), mainlay[0]);
     f.render_widget(list_parent_files, layout[0]);
     f.render_stateful_widget(list, layout[1], &mut ustate);
-    f.render_widget(list_child_fiels, layout[2]);
 }
