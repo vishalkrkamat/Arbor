@@ -73,7 +73,25 @@ impl FileManagerState {
     fn update_file_state_file(&mut self, con: String) {
         self.child_items = Preview::FileContent(con);
     }
+    fn delete(&mut self) {
+        if let Some(loc) = self.selected_index.selected() {
+            if let Some(file) = self.current_items.get(loc) {
+                let name = file.name.clone();
+                let path = self.current_dir.join(name);
 
+                match file.item_type {
+                    ItemType::File => {
+                        fs::remove_file(path);
+                        self.update_state(&self.current_dir.clone());
+                    }
+                    ItemType::Dir => {
+                        fs::remove_dir_all(path);
+                        self.update_state(&self.current_dir.clone());
+                    }
+                }
+            }
+        }
+    }
     fn convert_to_listitems(f: &Vec<ListsItem>) -> io::Result<Vec<ListItem>> {
         let list_items: Vec<ListItem> = f
             .iter()
@@ -156,6 +174,7 @@ impl FileManagerState {
                     KeyCode::Char('k') => state.up(),
                     KeyCode::Char('h') => state.previous_dir(),
                     KeyCode::Char('l') => state.next_dir(),
+                    KeyCode::Char('d') => state.delete(),
                     _ => {}
                 },
                 _ => {}
@@ -236,6 +255,7 @@ fn render(f: &mut Frame, state: &mut FileManagerState) {
 
         f.render_widget(list_child_fiels, layout[2]);
     }
+
     if let Preview::FileContent(con) = &state.child_items.clone() {
         let cont = Paragraph::new(String::from(con)).block(Block::default().borders(Borders::ALL));
         f.render_widget(cont, layout[2]);
