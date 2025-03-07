@@ -167,8 +167,8 @@ impl FileManagerState {
     fn run(mut terminal: DefaultTerminal, state: &mut FileManagerState) -> io::Result<()> {
         loop {
             terminal.draw(|f| render(f, state))?;
-            match event::read()? {
-                Event::Key(key) => match key.code {
+            if let Event::Key(key) = event::read()? {
+                match key.code {
                     KeyCode::Char('q') => break,
                     KeyCode::Char('j') => state.down(),
                     KeyCode::Char('k') => state.up(),
@@ -176,8 +176,7 @@ impl FileManagerState {
                     KeyCode::Char('l') => state.next_dir(),
                     KeyCode::Char('d') => state.delete(),
                     _ => {}
-                },
-                _ => {}
+                }
             }
         }
         Ok(())
