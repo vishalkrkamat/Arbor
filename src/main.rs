@@ -164,22 +164,76 @@ impl FileManagerState {
         }
     }
 
-    fn run(mut terminal: DefaultTerminal, state: &mut FileManagerState) -> io::Result<()> {
+    fn run(mut self, mut terminal: DefaultTerminal) -> io::Result<()> {
         loop {
-            terminal.draw(|f| render(f, state))?;
+            terminal.draw(|f| self.render(f))?;
             if let Event::Key(key) = event::read()? {
                 match key.code {
                     KeyCode::Char('q') => break,
-                    KeyCode::Char('j') => state.down(),
-                    KeyCode::Char('k') => state.up(),
-                    KeyCode::Char('h') => state.previous_dir(),
-                    KeyCode::Char('l') => state.next_dir(),
-                    KeyCode::Char('d') => state.delete(),
+                    KeyCode::Char('j') => self.down(),
+                    KeyCode::Char('k') => self.up(),
+                    KeyCode::Char('h') => self.previous_dir(),
+                    KeyCode::Char('l') => self.next_dir(),
+                    KeyCode::Char('d') => self.delete(),
                     _ => {}
                 }
             }
         }
         Ok(())
+    }
+
+    fn render(&mut self, f: &mut Frame) {
+        let mut ustate = &mut self.selected_index;
+        let parent_files = &self.parent_items;
+        let current_files = &self.current_items;
+        let list_current_items: Vec<ListItem> =
+            FileManagerState::convert_to_listitems(&current_files).unwrap();
+
+        let list_parent_items: Vec<ListItem> =
+            FileManagerState::convert_to_listitems(&parent_files).unwrap();
+        let current_directory = self.current_dir.to_string_lossy();
+
+        let mainlay = Layout::vertical([
+            Constraint::Length(1),
+            Constraint::Min(1),
+            Constraint::Length(1),
+        ])
+        .split(f.area());
+
+        let list = List::new(list_current_items)
+            .highlight_symbol(">>")
+            .block(Block::default().borders(Borders::ALL));
+        let list_parent_files =
+            List::new(list_parent_items).block(Block::default().borders(Borders::ALL));
+
+        let layout = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![
+                Constraint::Percentage(30),
+                Constraint::Percentage(40),
+                Constraint::Percentage(30),
+            ])
+            .split(mainlay[1]);
+
+        if let Preview::Directory(sub_files) = &self.child_items.clone() {
+            let list_sub_items: Vec<ListItem> =
+                FileManagerState::convert_to_listitems(&sub_files).unwrap();
+
+            let list_child_fiels =
+                List::new(list_sub_items).block(Block::default().borders(Borders::ALL));
+
+            f.render_widget(list_child_fiels, layout[2]);
+        }
+
+        if let Preview::FileContent(con) = &self.child_items.clone() {
+            let cont =
+                Paragraph::new(String::from(con)).block(Block::default().borders(Borders::ALL));
+            f.render_widget(cont, layout[2]);
+        }
+
+        f.render_widget(current_directory.to_string(), mainlay[0]);
+        f.render_widget(list_parent_files, layout[0]);
+        f.render_stateful_widget(list, layout[1], &mut ustate);
     }
 }
 
@@ -187,10 +241,9 @@ fn main() -> std::io::Result<()> {
     let terminal = ratatui::init();
     let start_dir = PathBuf::from(".");
     let absolute_path = start_dir.canonicalize().unwrap();
-    let mut state = FileManagerState::new(&absolute_path);
-    let result = FileManagerState::run(terminal, &mut state);
+    let appstate = FileManagerState::new(&absolute_path).run(terminal);
     ratatui::restore();
-    result
+    appstate
 }
 
 fn list_dir(p: &PathBuf) -> std::io::Result<Vec<ListsItem>> {
@@ -210,57 +263,4 @@ fn list_dir(p: &PathBuf) -> std::io::Result<Vec<ListsItem>> {
         items.push(item);
     }
     Ok(items)
-}
-
-fn render(f: &mut Frame, state: &mut FileManagerState) {
-    let mut ustate = &mut state.selected_index;
-    let parent_files = &state.parent_items;
-    let current_files = &state.current_items;
-    let list_current_items: Vec<ListItem> =
-        FileManagerState::convert_to_listitems(&current_files).unwrap();
-
-    let list_parent_items: Vec<ListItem> =
-        FileManagerState::convert_to_listitems(&parent_files).unwrap();
-    let current_directory = state.current_dir.to_string_lossy();
-
-    let mainlay = Layout::vertical([
-        Constraint::Length(1),
-        Constraint::Min(1),
-        Constraint::Length(1),
-    ])
-    .split(f.area());
-
-    let list = List::new(list_current_items)
-        .highlight_symbol(">>")
-        .block(Block::default().borders(Borders::ALL));
-    let list_parent_files =
-        List::new(list_parent_items).block(Block::default().borders(Borders::ALL));
-
-    let layout = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints(vec![
-            Constraint::Percentage(30),
-            Constraint::Percentage(40),
-            Constraint::Percentage(30),
-        ])
-        .split(mainlay[1]);
-
-    if let Preview::Directory(sub_files) = &state.child_items.clone() {
-        let list_sub_items: Vec<ListItem> =
-            FileManagerState::convert_to_listitems(&sub_files).unwrap();
-
-        let list_child_fiels =
-            List::new(list_sub_items).block(Block::default().borders(Borders::ALL));
-
-        f.render_widget(list_child_fiels, layout[2]);
-    }
-
-    if let Preview::FileContent(con) = &state.child_items.clone() {
-        let cont = Paragraph::new(String::from(con)).block(Block::default().borders(Borders::ALL));
-        f.render_widget(cont, layout[2]);
-    }
-
-    f.render_widget(current_directory.to_string(), mainlay[0]);
-    f.render_widget(list_parent_files, layout[0]);
-    f.render_stateful_widget(list, layout[1], &mut ustate);
 }
