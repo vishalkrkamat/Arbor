@@ -4,7 +4,7 @@ use ratatui::prelude::*;
 use ratatui::widgets::Paragraph;
 use ratatui::{
     layout::{Constraint, Flex, Rect},
-    widgets::{Block, Borders, Clear, List, ListItem, ListState},
+    widgets::{Block, BorderType::Rounded, Borders, Clear, List, ListItem, ListState},
     DefaultTerminal, Frame,
 };
 use std::path::PathBuf;
@@ -219,9 +219,9 @@ impl FileManagerState {
 
         let list = List::new(list_current_items)
             .highlight_symbol(">>")
-            .block(Block::default().borders(Borders::ALL));
-        let list_parent_files =
-            List::new(list_parent_items).block(Block::default().borders(Borders::ALL));
+            .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));
+        let list_parent_files = List::new(list_parent_items)
+            .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));
 
         let layout = Layout::default()
             .direction(Direction::Horizontal)
@@ -236,15 +236,15 @@ impl FileManagerState {
             let list_sub_items: Vec<ListItem> =
                 FileManagerState::convert_to_listitems(&sub_files).unwrap();
 
-            let list_child_fiels =
-                List::new(list_sub_items).block(Block::default().borders(Borders::ALL));
+            let list_child_fiels = List::new(list_sub_items)
+                .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));
 
             f.render_widget(list_child_fiels, layout[2]);
         }
 
         if let Preview::FileContent(con) = &self.child_items.clone() {
-            let cont =
-                Paragraph::new(String::from(con)).block(Block::default().borders(Borders::ALL));
+            let cont = Paragraph::new(String::from(con))
+                .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));
             f.render_widget(cont, layout[2]);
         }
 
@@ -253,7 +253,10 @@ impl FileManagerState {
         f.render_stateful_widget(list, layout[1], &mut ustate);
 
         if self.pop {
-            let block = Block::bordered().title("Confirm your action").blue();
+            let block = Block::bordered()
+                .border_type(Rounded)
+                .title("Confirm your action")
+                .blue();
             let area = popup_area(f.area(), 37, 40);
 
             let layout = Layout::default()
