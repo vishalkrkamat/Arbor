@@ -1,8 +1,10 @@
+mod utils;
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::prelude::*;
 use ratatui::widgets::Paragraph;
 use ratatui::{
-    widgets::{Block, Borders, List, ListItem, ListState},
+    layout::{Constraint, Flex, Rect},
+    widgets::{Block, Borders, Clear, List, ListItem, ListState},
     DefaultTerminal, Frame,
 };
 use std::path::PathBuf;
@@ -25,6 +27,7 @@ enum Preview {
     FileContent(String),
     Directory(Vec<ListsItem>),
 }
+
 #[derive(Debug)]
 struct FileManagerState {
     parent_items: Vec<ListsItem>,
@@ -33,6 +36,7 @@ struct FileManagerState {
     current_items: Vec<ListsItem>, // Items in the current directory
     child_items: Preview,          // Items in the selected subdirectory
     selected_index: ListState,     // Which item in current_items is selected
+    pop: bool,
 }
 
 impl FileManagerState {
@@ -45,15 +49,16 @@ impl FileManagerState {
             parent_dir,
             child_items: Preview::Directory(vec![]),
             selected_index: ListState::default(),
+            pop: false,
         }
     }
 
     fn get_state_data(start: &PathBuf) -> (Vec<ListsItem>, Option<PathBuf>, Vec<ListsItem>) {
-        let files = list_dir(&start).unwrap();
+        let files = utils::list_dir(&start).unwrap();
         let parent_dir = start.parent().map(|p| p.to_path_buf());
         let parent_items = parent_dir
             .as_ref()
-            .map_or_else(Vec::new, |p| list_dir(p).unwrap());
+            .map_or_else(Vec::new, |p| utils::list_dir(p).unwrap());
         (files, parent_dir, parent_items)
     }
 
@@ -73,6 +78,7 @@ impl FileManagerState {
     fn update_file_state_file(&mut self, con: String) {
         self.child_items = Preview::FileContent(con);
     }
+
     fn delete(&mut self) {
         if let Some(loc) = self.selected_index.selected() {
             if let Some(file) = self.current_items.get(loc) {
@@ -81,17 +87,20 @@ impl FileManagerState {
 
                 match file.item_type {
                     ItemType::File => {
-                        fs::remove_file(path);
+                        fs::remove_file(path).unwrap();
+                        //self.pop = true;
                         self.update_state(&self.current_dir.clone());
                     }
                     ItemType::Dir => {
-                        fs::remove_dir_all(path);
+                        fs::remove_dir_all(path).unwrap();
+                        //self.pop = true;
                         self.update_state(&self.current_dir.clone());
                     }
                 }
             }
         }
     }
+
     fn convert_to_listitems(f: &Vec<ListsItem>) -> io::Result<Vec<ListItem>> {
         let list_items: Vec<ListItem> = f
             .iter()
@@ -113,7 +122,7 @@ impl FileManagerState {
                 match selected_dir.item_type {
                     ItemType::Dir => {
                         let chilpath = current_dir.join(&selected_dir.name);
-                        let sub_files = list_dir(&chilpath).unwrap();
+                        let sub_files = utils::list_dir(&chilpath).unwrap();
                         self.get_file_update_state(sub_files);
                     }
                     ItemType::File => {
@@ -175,13 +184,21 @@ impl FileManagerState {
                     KeyCode::Char('h') => self.previous_dir(),
                     KeyCode::Char('l') => self.next_dir(),
                     KeyCode::Char('d') => self.delete(),
+                    KeyCode::Char('o') => self.toggle(),
+
                     _ => {}
                 }
             }
         }
         Ok(())
     }
-
+    fn toggle(&mut self) {
+        if self.pop == false {
+            self.pop = true
+        } else {
+            self.pop = false
+        }
+    }
     fn render(&mut self, f: &mut Frame) {
         let mut ustate = &mut self.selected_index;
         let parent_files = &self.parent_items;
@@ -209,8 +226,8 @@ impl FileManagerState {
         let layout = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(vec![
-                Constraint::Percentage(30),
-                Constraint::Percentage(40),
+                Constraint::Percentage(20),
+                Constraint::Percentage(50),
                 Constraint::Percentage(30),
             ])
             .split(mainlay[1]);
@@ -234,6 +251,32 @@ impl FileManagerState {
         f.render_widget(current_directory.to_string(), mainlay[0]);
         f.render_widget(list_parent_files, layout[0]);
         f.render_stateful_widget(list, layout[1], &mut ustate);
+
+        if self.pop {
+            let block = Block::bordered().title("Confirm your action").blue();
+            let area = popup_area(f.area(), 37, 40);
+
+            let layout = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints(vec![Constraint::Percentage(70), Constraint::Percentage(30)])
+                .split(area);
+
+            let conts =
+                Paragraph::new(String::from("hello")).block(Block::default().borders(Borders::TOP));
+            f.render_widget(Clear, area);
+            f.render_widget(block, area);
+            f.render_widget(conts, layout[1]);
+        }
+
+        //POP up ui
+        fn popup_area(area: Rect, percent_x: u16, percent_y: u16) -> Rect {
+            let vertical = Layout::vertical([Constraint::Percentage(percent_y)]).flex(Flex::Center);
+            let horizontal =
+                Layout::horizontal([Constraint::Percentage(percent_x)]).flex(Flex::Center);
+            let [area] = vertical.areas(area);
+            let [area] = horizontal.areas(area);
+            area
+        }
     }
 }
 
@@ -244,23 +287,4 @@ fn main() -> std::io::Result<()> {
     let appstate = FileManagerState::new(&absolute_path).run(terminal);
     ratatui::restore();
     appstate
-}
-
-fn list_dir(p: &PathBuf) -> std::io::Result<Vec<ListsItem>> {
-    let mut items = Vec::new();
-    for entry in fs::read_dir(p)? {
-        let entry = entry?;
-        let meta = entry.metadata()?;
-        let file_type = if meta.is_dir() {
-            ItemType::Dir
-        } else {
-            ItemType::File
-        };
-        let item = ListsItem {
-            name: entry.file_name().into_string().unwrap(),
-            item_type: file_type,
-        };
-        items.push(item);
-    }
-    Ok(items)
 }
