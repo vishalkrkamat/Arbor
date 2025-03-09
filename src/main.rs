@@ -259,16 +259,42 @@ impl FileManagerState {
                 .blue();
             let area = popup_area(f.area(), 37, 40);
 
-            let layout = Layout::default()
+            let section = Layout::default()
                 .direction(Direction::Vertical)
-                .constraints(vec![Constraint::Percentage(70), Constraint::Percentage(30)])
+                .constraints(vec![
+                    Constraint::Percentage(90),
+                    Constraint::Length(1),
+                    Constraint::Percentage(10),
+                ])
                 .split(area);
 
-            let conts =
-                Paragraph::new(String::from("hello")).block(Block::default().borders(Borders::TOP));
+            let separator = Paragraph::new(Span::styled(
+                "─".repeat(section[1].width as usize), // Line spans full width
+                Style::default().fg(Color::LightBlue),
+            ));
+
+            let vertical = Layout::horizontal([Constraint::Percentage(95)])
+                .flex(Flex::Center)
+                .split(section[1]);
+
+            let options = Paragraph::new("Yes(Y)")
+                .block(Block::default().borders(Borders::NONE))
+                .alignment(ratatui::layout::Alignment::Center);
+            let options1 = Paragraph::new("No(N)")
+                .block(Block::default().borders(Borders::NONE))
+                .alignment(ratatui::layout::Alignment::Center);
+
+            let section2 = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
+                .split(section[2]);
+
             f.render_widget(Clear, area);
             f.render_widget(block, area);
-            f.render_widget(conts, layout[1]);
+
+            f.render_widget(separator, vertical[0]);
+            f.render_widget(options, section2[0]);
+            f.render_widget(options1, section2[1]);
         }
 
         //POP up ui
