@@ -87,13 +87,15 @@ impl FileManagerState {
 
                 match file.item_type {
                     ItemType::File => {
-                        fs::remove_file(path).unwrap();
-                        //self.pop = true;
+                        if let Ok(_) = fs::remove_file(path) {
+                            self.pop = false;
+                        };
                         self.update_state(&self.current_dir.clone());
                     }
                     ItemType::Dir => {
-                        fs::remove_dir_all(path).unwrap();
-                        //self.pop = true;
+                        if let Ok(_) = fs::remove_dir_all(path) {
+                            self.pop = false;
+                        };
                         self.update_state(&self.current_dir.clone());
                     }
                 }
@@ -177,16 +179,23 @@ impl FileManagerState {
         loop {
             terminal.draw(|f| self.render(f))?;
             if let Event::Key(key) = event::read()? {
-                match key.code {
-                    KeyCode::Char('q') => break,
-                    KeyCode::Char('j') => self.down(),
-                    KeyCode::Char('k') => self.up(),
-                    KeyCode::Char('h') => self.previous_dir(),
-                    KeyCode::Char('l') => self.next_dir(),
-                    KeyCode::Char('d') => self.delete(),
-                    KeyCode::Char('o') => self.toggle(),
+                if self.pop {
+                    match key.code {
+                        KeyCode::Char('n') => self.toggle(),
+                        KeyCode::Char('y') => self.delete(),
+                        _ => {}
+                    }
+                } else {
+                    match key.code {
+                        KeyCode::Char('q') => break,
+                        KeyCode::Char('j') => self.down(),
+                        KeyCode::Char('k') => self.up(),
+                        KeyCode::Char('h') => self.previous_dir(),
+                        KeyCode::Char('l') => self.next_dir(),
+                        KeyCode::Char('d') => self.toggle(),
 
-                    _ => {}
+                        _ => {}
+                    }
                 }
             }
         }
