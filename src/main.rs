@@ -146,10 +146,17 @@ impl FileManagerState {
 
     fn down(&mut self) {
         self.selected_index.select_next();
+        if self.current_items.len() == self.selected_index.selected().unwrap() {
+            self.selected_index.select(Some(0));
+        }
         self.get_sub_files();
     }
 
     fn up(&mut self) {
+        let lastl = self.current_items.len();
+        if self.selected_index.selected().unwrap() == 0 {
+            self.selected_index.select(Some(lastl));
+        }
         self.selected_index.select_previous();
         self.get_sub_files();
     }
