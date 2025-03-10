@@ -28,6 +28,12 @@ enum Preview {
     Directory(Vec<ListsItem>),
 }
 
+#[derive(Debug, Clone, PartialEq)]
+enum PopUI {
+    Confirmation,
+    RenameUI,
+}
+
 #[derive(Debug)]
 struct FileManagerState {
     parent_items: Vec<ListsItem>,
@@ -36,7 +42,7 @@ struct FileManagerState {
     current_items: Vec<ListsItem>, // Items in the current directory
     child_items: Preview,          // Items in the selected subdirectory
     selected_index: ListState,     // Which item in current_items is selected
-    pop: bool,
+    pop: Option<PopUI>,
 }
 
 impl FileManagerState {
@@ -49,7 +55,7 @@ impl FileManagerState {
             parent_dir,
             child_items: Preview::Directory(vec![]),
             selected_index: ListState::default(),
-            pop: false,
+            pop: None,
         }
     }
 
@@ -88,19 +94,23 @@ impl FileManagerState {
                 match file.item_type {
                     ItemType::File => {
                         if let Ok(_) = fs::remove_file(path) {
-                            self.pop = false;
+                            self.pop = None;
                         };
                         self.update_state(&self.current_dir.clone());
                     }
                     ItemType::Dir => {
                         if let Ok(_) = fs::remove_dir_all(path) {
-                            self.pop = false;
+                            self.pop = None;
                         };
                         self.update_state(&self.current_dir.clone());
                     }
                 }
             }
         }
+    }
+
+    fn rename(&mut self) {
+        todo!()
     }
 
     fn convert_to_listitems(f: &Vec<ListsItem>) -> io::Result<Vec<ListItem>> {
@@ -186,7 +196,7 @@ impl FileManagerState {
         loop {
             terminal.draw(|f| self.render(f))?;
             if let Event::Key(key) = event::read()? {
-                if self.pop {
+                if let Some(PopUI::Confirmation) = self.pop.clone() {
                     match key.code {
                         KeyCode::Char('n') => self.toggle(),
                         KeyCode::Char('y') => self.delete(),
@@ -200,6 +210,7 @@ impl FileManagerState {
                         KeyCode::Char('h') => self.previous_dir(),
                         KeyCode::Char('l') => self.next_dir(),
                         KeyCode::Char('d') => self.toggle(),
+                        KeyCode::Char('r') => self.rename(),
 
                         _ => {}
                     }
@@ -208,13 +219,15 @@ impl FileManagerState {
         }
         Ok(())
     }
+
     fn toggle(&mut self) {
-        if self.pop == false {
-            self.pop = true
+        if let Some(PopUI::Confirmation) = self.pop.clone() {
+            self.pop = None
         } else {
-            self.pop = false
+            self.pop = Some(PopUI::Confirmation)
         }
     }
+
     fn render(&mut self, f: &mut Frame) {
         let mut ustate = &mut self.selected_index;
         let parent_files = &self.parent_items;
@@ -248,27 +261,28 @@ impl FileManagerState {
             ])
             .split(mainlay[1]);
 
-        if let Preview::Directory(sub_files) = &self.child_items.clone() {
-            let list_sub_items: Vec<ListItem> =
-                FileManagerState::convert_to_listitems(&sub_files).unwrap();
+        match &self.child_items.clone() {
+            Preview::Directory(sub_files) => {
+                let list_sub_items: Vec<ListItem> =
+                    FileManagerState::convert_to_listitems(&sub_files).unwrap();
 
-            let list_child_fiels = List::new(list_sub_items)
-                .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));
+                let list_child_fiels = List::new(list_sub_items)
+                    .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));
 
-            f.render_widget(list_child_fiels, layout[2]);
-        }
-
-        if let Preview::FileContent(con) = &self.child_items.clone() {
-            let cont = Paragraph::new(String::from(con))
-                .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));
-            f.render_widget(cont, layout[2]);
+                f.render_widget(list_child_fiels, layout[2]);
+            }
+            Preview::FileContent(con) => {
+                let cont = Paragraph::new(String::from(con))
+                    .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));
+                f.render_widget(cont, layout[2]);
+            }
         }
 
         f.render_widget(current_directory.to_string(), mainlay[0]);
         f.render_widget(list_parent_files, layout[0]);
         f.render_stateful_widget(list, layout[1], &mut ustate);
 
-        if self.pop {
+        if let Some(PopUI::Confirmation) = self.pop.clone() {
             let block = Block::bordered()
                 .border_type(Rounded)
                 .title("Confirm your action")
