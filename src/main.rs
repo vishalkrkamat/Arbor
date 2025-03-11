@@ -110,6 +110,12 @@ impl FileManagerState {
     }
 
     fn rename(&mut self) {
+        //   if let Some(ind) = self.selected_index.selected() {
+        //      if let Some(sel) = self.current_items.get(ind) {
+        //         let filename = &sel.name;
+        //        //fs::rename(filename, )
+        //   }
+        //};
         todo!()
     }
 
@@ -210,7 +216,7 @@ impl FileManagerState {
                         KeyCode::Char('h') => self.previous_dir(),
                         KeyCode::Char('l') => self.next_dir(),
                         KeyCode::Char('d') => self.toggle(),
-                        KeyCode::Char('r') => self.rename(),
+                        KeyCode::Char('r') => self.pop = Some(PopUI::RenameUI),
 
                         _ => {}
                     }
@@ -325,6 +331,17 @@ impl FileManagerState {
             f.render_widget(separator, vertical[0]);
             f.render_widget(options, section2[0]);
             f.render_widget(options1, section2[1]);
+        }
+        if let Some(PopUI::RenameUI) = self.pop.clone() {
+            let block = Block::bordered()
+                .border_type(Rounded)
+                .title("Rename")
+                .blue();
+
+            let area = popup_area(f.area(), 40, 20);
+
+            f.render_widget(Clear, area);
+            f.render_widget(block, area);
         }
 
         //POP up ui
