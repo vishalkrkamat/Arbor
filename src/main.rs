@@ -60,7 +60,7 @@ impl FileManagerState {
     }
 
     fn get_state_data(start: &PathBuf) -> (Vec<ListsItem>, Option<PathBuf>, Vec<ListsItem>) {
-        let files = utils::list_dir(&start).unwrap();
+        let files = utils::list_dir(start).unwrap();
         let parent_dir = start.parent().map(|p| p.to_path_buf());
         let parent_items = parent_dir
             .as_ref()
@@ -93,13 +93,13 @@ impl FileManagerState {
 
                 match file.item_type {
                     ItemType::File => {
-                        if let Ok(_) = fs::remove_file(path) {
+                        if fs::remove_file(path).is_ok() {
                             self.pop = None;
                         };
                         self.update_state(&self.current_dir.clone());
                     }
                     ItemType::Dir => {
-                        if let Ok(_) = fs::remove_dir_all(path) {
+                        if fs::remove_dir_all(path).is_ok() {
                             self.pop = None;
                         };
                         self.update_state(&self.current_dir.clone());
@@ -192,7 +192,7 @@ impl FileManagerState {
                         new_dir.push(&selected_file.name);
                         self.update_state(&new_dir);
                     }
-                    ItemType::File => println!(""),
+                    ItemType::File => println!(),
                 }
             }
         }
@@ -235,14 +235,14 @@ impl FileManagerState {
     }
 
     fn render(&mut self, f: &mut Frame) {
-        let mut ustate = &mut self.selected_index;
+        let ustate = &mut self.selected_index;
         let parent_files = &self.parent_items;
         let current_files = &self.current_items;
         let list_current_items: Vec<ListItem> =
-            FileManagerState::convert_to_listitems(&current_files).unwrap();
+            FileManagerState::convert_to_listitems(current_files).unwrap();
 
         let list_parent_items: Vec<ListItem> =
-            FileManagerState::convert_to_listitems(&parent_files).unwrap();
+            FileManagerState::convert_to_listitems(parent_files).unwrap();
         let current_directory = self.current_dir.to_string_lossy();
 
         let mainlay = Layout::vertical([
@@ -270,7 +270,7 @@ impl FileManagerState {
         match &self.child_items.clone() {
             Preview::Directory(sub_files) => {
                 let list_sub_items: Vec<ListItem> =
-                    FileManagerState::convert_to_listitems(&sub_files).unwrap();
+                    FileManagerState::convert_to_listitems(sub_files).unwrap();
 
                 let list_child_fiels = List::new(list_sub_items)
                     .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));
@@ -286,7 +286,7 @@ impl FileManagerState {
 
         f.render_widget(current_directory.to_string(), mainlay[0]);
         f.render_widget(list_parent_files, layout[0]);
-        f.render_stateful_widget(list, layout[1], &mut ustate);
+        f.render_stateful_widget(list, layout[1], ustate);
 
         if let Some(PopUI::Confirmation) = self.pop.clone() {
             let block = Block::bordered()
