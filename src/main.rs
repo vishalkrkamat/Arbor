@@ -42,6 +42,7 @@ struct FileManagerState {
     current_items: Vec<ListsItem>, // Items in the current directory
     child_items: Preview,          // Items in the selected subdirectory
     selected_index: ListState,     // Which item in current_items is selected
+    temp: String,
     pop: Option<PopUI>,
 }
 
@@ -56,6 +57,7 @@ impl FileManagerState {
             child_items: Preview::Directory(vec![]),
             selected_index: ListState::default(),
             pop: None,
+            temp: "".to_string(),
         }
     }
 
@@ -109,14 +111,16 @@ impl FileManagerState {
         }
     }
 
-    fn rename(&mut self) {
-        //   if let Some(ind) = self.selected_index.selected() {
-        //      if let Some(sel) = self.current_items.get(ind) {
-        //         let filename = &sel.name;
-        //        //fs::rename(filename, )
-        //   }
-        //};
-        todo!()
+    fn rename(&mut self, input: String) {
+        if let Some(ind) = self.selected_index.selected() {
+            if let Some(sel) = self.current_items.get(ind) {
+                let filename = &sel.name;
+                if fs::rename(filename, input).is_ok() {
+                    self.update_state(&self.current_dir.clone());
+                    self.pop = None;
+                };
+            }
+        };
     }
 
     fn convert_to_listitems(f: &Vec<ListsItem>) -> io::Result<Vec<ListItem>> {
@@ -214,7 +218,17 @@ impl FileManagerState {
 
                 if let Some(PopUI::RenameUI) = self.pop.clone() {
                     match key.code {
-                        KeyCode::Char('q') => self.pop = None,
+                        KeyCode::Char(c) => {
+                            self.temp.push(c);
+                        }
+                        // Append character to input
+                        KeyCode::Backspace => {
+                            self.temp.pop();
+                        } // Remove last character
+                        KeyCode::Enter => {
+                            self.rename(self.temp.clone()); // Call function with input
+                        }
+                        KeyCode::Esc => self.pop = None, // Exit without processing
                         _ => {}
                     }
                     continue;
@@ -342,16 +356,20 @@ impl FileManagerState {
             f.render_widget(options, section2[0]);
             f.render_widget(options1, section2[1]);
         }
-        if let Some(PopUI::RenameUI) = self.pop.clone() {
-            let block = Block::bordered()
-                .border_type(Rounded)
-                .title("Rename")
-                .blue();
 
-            let area = popup_area(f.area(), 40, 20);
+        if let Some(PopUI::RenameUI) = self.pop.clone() {
+            let input = self.temp.clone();
+            let inputp = Paragraph::new(input.clone()).block(
+                Block::bordered()
+                    .border_type(Rounded)
+                    .title("Rename")
+                    .blue(),
+            );
+
+            let area = popup_area(f.area(), 30, 20);
 
             f.render_widget(Clear, area);
-            f.render_widget(block, area);
+            f.render_widget(inputp, area);
         }
 
         //POP up ui
