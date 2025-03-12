@@ -201,6 +201,7 @@ impl FileManagerState {
     fn run(mut self, mut terminal: DefaultTerminal) -> io::Result<()> {
         loop {
             terminal.draw(|f| self.render(f))?;
+
             if let Event::Key(key) = event::read()? {
                 if let Some(PopUI::Confirmation) = self.pop.clone() {
                     match key.code {
@@ -208,18 +209,27 @@ impl FileManagerState {
                         KeyCode::Char('y') => self.delete(),
                         _ => {}
                     }
-                } else {
-                    match key.code {
-                        KeyCode::Char('q') => break,
-                        KeyCode::Char('j') => self.down(),
-                        KeyCode::Char('k') => self.up(),
-                        KeyCode::Char('h') => self.previous_dir(),
-                        KeyCode::Char('l') => self.next_dir(),
-                        KeyCode::Char('d') => self.toggle(),
-                        KeyCode::Char('r') => self.pop = Some(PopUI::RenameUI),
+                    continue;
+                }
 
+                if let Some(PopUI::RenameUI) = self.pop.clone() {
+                    match key.code {
+                        KeyCode::Char('q') => self.pop = None,
                         _ => {}
                     }
+                    continue;
+                }
+
+                match key.code {
+                    KeyCode::Char('q') => break,
+                    KeyCode::Char('j') => self.down(),
+                    KeyCode::Char('k') => self.up(),
+                    KeyCode::Char('h') => self.previous_dir(),
+                    KeyCode::Char('l') => self.next_dir(),
+                    KeyCode::Char('d') => self.toggle(),
+                    KeyCode::Char('r') => self.pop = Some(PopUI::RenameUI),
+
+                    _ => {}
                 }
             }
         }
