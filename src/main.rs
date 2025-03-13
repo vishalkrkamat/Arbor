@@ -242,9 +242,9 @@ impl FileManagerState {
                             self.temp.pop();
                         } // Remove last character
                         KeyCode::Enter => {
-                            self.rename(self.temp.clone()); // Call function with input
+                            self.rename(self.temp.clone());
                         }
-                        KeyCode::Esc => self.pop = None, // Exit without processing
+                        KeyCode::Esc => self.pop = None,
                         _ => {}
                     }
                     continue;
@@ -354,7 +354,7 @@ impl FileManagerState {
                 .split(area);
 
             let separator = Paragraph::new(Span::styled(
-                "─".repeat(section[1].width as usize), // Line spans full width
+                "─".repeat(section[1].width as usize),
                 Style::default().fg(Color::LightBlue),
             ));
 
@@ -397,7 +397,7 @@ impl FileManagerState {
             f.render_widget(inputp, area);
         }
 
-        //POP up ui
+        //POPUp UI constructor
         fn popup_area(area: Rect, percent_x: u16, percent_y: u16) -> Rect {
             let vertical = Layout::vertical([Constraint::Percentage(percent_y)]).flex(Flex::Center);
             let horizontal =
