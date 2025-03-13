@@ -1,10 +1,12 @@
 mod utils;
 use crossterm::event::{self, Event, KeyCode};
+use hex;
 use ratatui::prelude::*;
-use ratatui::widgets::Paragraph;
 use ratatui::{
     layout::{Constraint, Flex, Rect},
-    widgets::{Block, BorderType::Rounded, Borders, Clear, List, ListItem, ListState},
+    widgets::{
+        Block, BorderType::Rounded, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap,
+    },
     DefaultTerminal, Frame,
 };
 use std::path::PathBuf;
@@ -23,8 +25,13 @@ struct ListsItem {
 }
 
 #[derive(Debug, Clone)]
+enum FileType {
+    Text(String),
+    Byes(Vec<u8>),
+}
+#[derive(Debug, Clone)]
 enum Preview {
-    FileContent(String),
+    Files(FileType),
     Directory(Vec<ListsItem>),
 }
 
@@ -84,7 +91,11 @@ impl FileManagerState {
     }
 
     fn update_file_state_file(&mut self, con: String) {
-        self.child_items = Preview::FileContent(con);
+        self.child_items = Preview::Files(FileType::Text(con));
+    }
+
+    fn update_file_state_binary(&mut self, con: Vec<u8>) {
+        self.child_items = Preview::Files(FileType::Byes(con));
     }
 
     fn delete(&mut self) {
@@ -122,7 +133,9 @@ impl FileManagerState {
             }
         };
     }
-
+    fn create(&mut self) {
+        todo!()
+    }
     fn convert_to_listitems(f: &Vec<ListsItem>) -> io::Result<Vec<ListItem>> {
         let list_items: Vec<ListItem> = f
             .iter()
@@ -152,9 +165,12 @@ impl FileManagerState {
                             if let Some(selected_file) = self.current_items.get(loc) {
                                 let current_file =
                                     self.current_dir.clone().join(selected_file.name.clone());
-                                match fs::read_to_string(current_file) {
+                                match fs::read_to_string(&current_file) {
                                     Ok(con) => self.update_file_state_file(con),
-                                    Err(_e) => eprint!("error"),
+                                    Err(_) => match fs::read(current_file) {
+                                        Ok(con) => self.update_file_state_binary(con),
+                                        Err(_e) => eprint!("error"),
+                                    },
                                 };
                             }
                         }
@@ -242,7 +258,7 @@ impl FileManagerState {
                     KeyCode::Char('l') => self.next_dir(),
                     KeyCode::Char('d') => self.toggle(),
                     KeyCode::Char('r') => self.pop = Some(PopUI::RenameUI),
-
+                    KeyCode::Char('a') => self.create(),
                     _ => {}
                 }
             }
@@ -298,12 +314,21 @@ impl FileManagerState {
 
                 let list_child_fiels = List::new(list_sub_items)
                     .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));
-
+                f.render_widget(Clear, layout[2]);
                 f.render_widget(list_child_fiels, layout[2]);
             }
-            Preview::FileContent(con) => {
+            Preview::Files(FileType::Text(con)) => {
                 let cont = Paragraph::new(String::from(con))
+                    .wrap(Wrap { trim: true })
                     .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));
+                f.render_widget(Clear, layout[2]);
+                f.render_widget(cont, layout[2]);
+            }
+            Preview::Files(FileType::Byes(con)) => {
+                let cont = Paragraph::new(hex::encode(con))
+                    .wrap(Wrap { trim: true })
+                    .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));
+                f.render_widget(Clear, layout[2]);
                 f.render_widget(cont, layout[2]);
             }
         }
