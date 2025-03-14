@@ -1,6 +1,5 @@
 mod utils;
 use crossterm::event::{self, Event, KeyCode};
-use hex;
 use ratatui::prelude::*;
 use ratatui::{
     layout::{Constraint, Flex, Rect},
@@ -136,7 +135,7 @@ impl FileManagerState {
     fn create(&mut self) {
         todo!()
     }
-    fn convert_to_listitems(f: &Vec<ListsItem>) -> io::Result<Vec<ListItem>> {
+    fn convert_to_listitems(f: &[ListsItem]) -> io::Result<Vec<ListItem>> {
         let list_items: Vec<ListItem> = f
             .iter()
             .map(|item| {
