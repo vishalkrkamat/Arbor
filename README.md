@@ -18,6 +18,8 @@ Arbor is a simple and interactive terminal-based file manager built using Rust, 
 | `h` | Go to the previous directory |
 | `l` | Enter the selected directory |
 | `q` | Quit the application |
+| `d` | Delete Functionality |
+| `r` | Rename Functionality |
 
 ## 🛠️ Installation  
 
