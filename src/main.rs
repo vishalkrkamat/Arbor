@@ -1,3 +1,4 @@
+use std::fs;
 mod utils;
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::prelude::*;
@@ -8,8 +9,7 @@ use ratatui::{
     },
     DefaultTerminal, Frame,
 };
-use std::path::PathBuf;
-use std::{fs, io};
+use std::{fs::File, io, path::PathBuf};
 
 #[derive(Debug, Clone)]
 enum ItemType {
@@ -38,6 +38,7 @@ enum Preview {
 enum PopUI {
     Confirmation,
     RenameUI,
+    Creation,
 }
 
 #[derive(Debug)]
@@ -132,9 +133,27 @@ impl FileManagerState {
             }
         };
     }
-    fn create(&mut self) {
-        todo!()
+
+    fn create(&mut self, input: String) {
+        if input.ends_with("/") {
+            match fs::create_dir_all(input) {
+                Ok(_) => {
+                    self.update_state(&self.current_dir.clone());
+                    self.pop = None;
+                }
+                Err(e) => eprint!("{e}"),
+            }
+        } else {
+            match File::create(input) {
+                Ok(_) => {
+                    self.update_state(&self.current_dir.clone());
+                    self.pop = None;
+                }
+                Err(e) => eprint!("{e}"),
+            }
+        };
     }
+
     fn convert_to_listitems(f: &[ListsItem]) -> io::Result<Vec<ListItem>> {
         let list_items: Vec<ListItem> = f
             .iter()
@@ -249,6 +268,24 @@ impl FileManagerState {
                     continue;
                 }
 
+                if let Some(PopUI::Creation) = self.pop.clone() {
+                    match key.code {
+                        KeyCode::Char(c) => {
+                            self.temp.push(c);
+                        }
+                        // Append character to input
+                        KeyCode::Backspace => {
+                            self.temp.pop();
+                        } // Remove last character
+                        KeyCode::Enter => {
+                            self.create(self.temp.clone());
+                        }
+                        KeyCode::Esc => self.pop = None,
+                        _ => {}
+                    }
+                    continue;
+                }
+
                 match key.code {
                     KeyCode::Char('q') => break,
                     KeyCode::Char('j') => self.down(),
@@ -257,7 +294,7 @@ impl FileManagerState {
                     KeyCode::Char('l') => self.next_dir(),
                     KeyCode::Char('d') => self.toggle(),
                     KeyCode::Char('r') => self.pop = Some(PopUI::RenameUI),
-                    KeyCode::Char('a') => self.create(),
+                    KeyCode::Char('a') => self.pop = Some(PopUI::Creation),
                     _ => {}
                 }
             }
@@ -391,6 +428,21 @@ impl FileManagerState {
             );
 
             let area = popup_area(f.area(), 30, 20);
+
+            f.render_widget(Clear, area);
+            f.render_widget(inputp, area);
+        }
+
+        if let Some(PopUI::Creation) = self.pop.clone() {
+            let input = self.temp.clone();
+            let inputp = Paragraph::new(input.clone()).block(
+                Block::bordered()
+                    .border_type(Rounded)
+                    .title("Create")
+                    .blue(),
+            );
+
+            let area = popup_area(f.area(), 30, 10);
 
             f.render_widget(Clear, area);
             f.render_widget(inputp, area);
