@@ -3,7 +3,7 @@ mod utils;
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::prelude::*;
 use ratatui::{
-    layout::{Constraint, Flex, Rect},
+    layout::{Constraint, Flex},
     widgets::{
         Block, BorderType::Rounded, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap,
     },
@@ -378,7 +378,7 @@ impl FileManagerState {
                 .border_type(Rounded)
                 .title("Confirm your action")
                 .blue();
-            let area = popup_area(f.area(), 37, 40);
+            let area = utils::popup_area(f.area(), 37, 40);
 
             let section = Layout::default()
                 .direction(Direction::Vertical)
@@ -427,7 +427,7 @@ impl FileManagerState {
                     .blue(),
             );
 
-            let area = popup_area(f.area(), 30, 20);
+            let area = utils::popup_area(f.area(), 30, 20);
 
             f.render_widget(Clear, area);
             f.render_widget(inputp, area);
@@ -442,20 +442,10 @@ impl FileManagerState {
                     .blue(),
             );
 
-            let area = popup_area(f.area(), 30, 10);
+            let area = utils::popup_area(f.area(), 30, 10);
 
             f.render_widget(Clear, area);
             f.render_widget(inputp, area);
-        }
-
-        //POPUp UI constructor
-        fn popup_area(area: Rect, percent_x: u16, percent_y: u16) -> Rect {
-            let vertical = Layout::vertical([Constraint::Percentage(percent_y)]).flex(Flex::Center);
-            let horizontal =
-                Layout::horizontal([Constraint::Percentage(percent_x)]).flex(Flex::Center);
-            let [area] = vertical.areas(area);
-            let [area] = horizontal.areas(area);
-            area
         }
     }
 }
