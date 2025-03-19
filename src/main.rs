@@ -63,7 +63,7 @@ impl FileManagerState {
             current_dir: star_dir.to_path_buf(),
             parent_dir,
             child_items: Preview::Directory(vec![]),
-            selected_index: ListState::default(),
+            selected_index: ListState::default().with_selected(Some(0)),
             pop: None,
             temp: "".to_string(),
         }
@@ -120,6 +120,7 @@ impl FileManagerState {
                 let filename = &sel.name;
                 if fs::rename(filename, input).is_ok() {
                     self.update_state(&self.current_dir.clone());
+                    self.temp = "".to_string();
                     self.pop = None;
                 };
             }
