@@ -114,10 +114,13 @@ impl FileManagerState {
         }
     }
 
-    fn rename(&mut self, input: String) {
+    fn rename(&mut self, input: &mut String) {
         if let Some(ind) = self.selected_index.selected() {
             if let Some(sel) = self.current_items.get(ind) {
                 let filename = &sel.name;
+                if input.ends_with("/") {
+                    input.pop();
+                }
                 if fs::rename(filename, input).is_ok() {
                     self.update_state(&self.current_dir.clone());
                     self.temp = "".to_string();
@@ -239,7 +242,7 @@ impl FileManagerState {
                             self.temp.pop();
                         } // Remove last character
                         KeyCode::Enter => {
-                            self.rename(self.temp.clone());
+                            self.rename(&mut self.temp.clone());
                         }
                         KeyCode::Esc => self.pop = None,
                         _ => {}
