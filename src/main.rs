@@ -10,6 +10,7 @@ use ratatui::{
     DefaultTerminal, Frame,
 };
 use std::{fs::File, io, path::PathBuf};
+use utils::{convert_to_listitems, get_state_data};
 
 #[derive(Debug, Clone)]
 enum ItemType {
@@ -55,7 +56,7 @@ struct FileManagerState {
 
 impl FileManagerState {
     fn new(star_dir: &PathBuf) -> Self {
-        let (files, parent_dir, parent_items) = Self::get_state_data(star_dir);
+        let (files, parent_dir, parent_items) = get_state_data(star_dir);
         Self {
             parent_items,
             current_items: files,
@@ -68,17 +69,8 @@ impl FileManagerState {
         }
     }
 
-    fn get_state_data(start: &PathBuf) -> (Vec<ListsItem>, Option<PathBuf>, Vec<ListsItem>) {
-        let files = utils::list_dir(start).unwrap();
-        let parent_dir = start.parent().map(|p| p.to_path_buf());
-        let parent_items = parent_dir
-            .as_ref()
-            .map_or_else(Vec::new, |p| utils::list_dir(p).unwrap());
-        (files, parent_dir, parent_items)
-    }
-
     fn update_state(&mut self, new_dir: &PathBuf) {
-        let (files, parent_dir, parent_items) = Self::get_state_data(new_dir);
+        let (files, parent_dir, parent_items) = get_state_data(new_dir);
 
         self.current_dir = new_dir.to_path_buf();
         self.current_items = files;
@@ -152,20 +144,6 @@ impl FileManagerState {
                 Err(e) => eprint!("{e}"),
             }
         };
-    }
-
-    fn convert_to_listitems(f: &[ListsItem]) -> io::Result<Vec<ListItem>> {
-        let list_items: Vec<ListItem> = f
-            .iter()
-            .map(|item| {
-                let display = match item.item_type {
-                    ItemType::Dir => format!("📁 {}", item.name),
-                    ItemType::File => format!("📄 {}", item.name),
-                };
-                ListItem::new(display)
-            })
-            .collect();
-        Ok(list_items)
     }
 
     fn get_sub_files(&mut self) {
@@ -314,11 +292,9 @@ impl FileManagerState {
         let ustate = &mut self.selected_index;
         let parent_files = &self.parent_items;
         let current_files = &self.current_items;
-        let list_current_items: Vec<ListItem> =
-            FileManagerState::convert_to_listitems(current_files).unwrap();
+        let list_current_items: Vec<ListItem> = convert_to_listitems(current_files).unwrap();
 
-        let list_parent_items: Vec<ListItem> =
-            FileManagerState::convert_to_listitems(parent_files).unwrap();
+        let list_parent_items: Vec<ListItem> = convert_to_listitems(parent_files).unwrap();
         let current_directory = self.current_dir.to_string_lossy();
 
         let mainlay = Layout::vertical([
@@ -345,8 +321,7 @@ impl FileManagerState {
 
         match &self.child_items.clone() {
             Preview::Directory(sub_files) => {
-                let list_sub_items: Vec<ListItem> =
-                    FileManagerState::convert_to_listitems(sub_files).unwrap();
+                let list_sub_items: Vec<ListItem> = convert_to_listitems(sub_files).unwrap();
 
                 let list_child_fiels = List::new(list_sub_items)
                     .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));

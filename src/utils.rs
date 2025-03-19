@@ -1,8 +1,9 @@
 use crate::ItemType;
 use crate::ListsItem;
 use ratatui::layout::{Constraint, Flex, Layout, Rect};
-use std::fs;
+use ratatui::widgets::ListItem;
 use std::path::PathBuf;
+use std::{fs, io};
 
 pub fn list_dir(p: &PathBuf) -> std::io::Result<Vec<ListsItem>> {
     let mut items = Vec::new();
@@ -21,6 +22,28 @@ pub fn list_dir(p: &PathBuf) -> std::io::Result<Vec<ListsItem>> {
         items.push(item);
     }
     Ok(items)
+}
+pub fn get_state_data(start: &PathBuf) -> (Vec<ListsItem>, Option<PathBuf>, Vec<ListsItem>) {
+    let files = list_dir(start).unwrap();
+    let parent_dir = start.parent().map(|p| p.to_path_buf());
+    let parent_items = parent_dir
+        .as_ref()
+        .map_or_else(Vec::new, |p| list_dir(p).unwrap());
+    (files, parent_dir, parent_items)
+}
+
+pub fn convert_to_listitems(f: &[ListsItem]) -> io::Result<Vec<ListItem>> {
+    let list_items: Vec<ListItem> = f
+        .iter()
+        .map(|item| {
+            let display = match item.item_type {
+                ItemType::Dir => format!("📁 {}", item.name),
+                ItemType::File => format!("📄 {}", item.name),
+            };
+            ListItem::new(display)
+        })
+        .collect();
+    Ok(list_items)
 }
 
 //POPUp UI constructor
