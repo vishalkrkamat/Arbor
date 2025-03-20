@@ -138,25 +138,27 @@ impl FileManagerState {
             let parent_path = parts.join("/");
 
             if !parent_path.is_empty() {
-                fs::create_dir_all(&parent_path).expect("Failed to create directories");
+                fs::create_dir_all(PathBuf::from(parent_path.clone()))
+                    .expect("Failed to create directories");
             }
 
             if is_dir {
-                let dir_path = format!("{}/{}", parent_path, last);
-                match fs::create_dir_all(&dir_path) {
+                let dir_path = PathBuf::from(format!("{}/{}", parent_path, last));
+
+                match fs::create_dir_all(dir_path) {
                     Ok(_) => {
                         self.update_state(&self.current_dir.clone());
+                        self.temp = "".to_string();
                         self.pop = None;
                     }
                     Err(e) => eprint!("{e}"),
                 }
-
-                println!("Created directory: {}", dir_path);
             } else {
-                let file_path = format!("{}/{}", parent_path, last);
+                let file_path = PathBuf::from(format!("{}/{}", parent_path, last));
                 match File::create(&file_path) {
                     Ok(_) => {
                         self.update_state(&self.current_dir.clone());
+                        self.temp = "".to_string();
                         self.pop = None;
                     }
                     Err(e) => eprint!("{e}"),
