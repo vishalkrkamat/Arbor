@@ -131,23 +131,38 @@ impl FileManagerState {
     }
 
     fn create(&mut self, input: String) {
-        if input.ends_with("/") {
-            match fs::create_dir_all(input) {
-                Ok(_) => {
-                    self.update_state(&self.current_dir.clone());
-                    self.pop = None;
-                }
-                Err(e) => eprint!("{e}"),
+        let is_dir = input.ends_with('/');
+        let mut parts: Vec<&str> = input.trim_end_matches('/').split('/').collect();
+
+        if let Some(last) = parts.pop() {
+            let parent_path = parts.join("/");
+
+            if !parent_path.is_empty() {
+                fs::create_dir_all(&parent_path).expect("Failed to create directories");
             }
-        } else {
-            match File::create(input) {
-                Ok(_) => {
-                    self.update_state(&self.current_dir.clone());
-                    self.pop = None;
+
+            if is_dir {
+                let dir_path = format!("{}/{}", parent_path, last);
+                match fs::create_dir_all(&dir_path) {
+                    Ok(_) => {
+                        self.update_state(&self.current_dir.clone());
+                        self.pop = None;
+                    }
+                    Err(e) => eprint!("{e}"),
                 }
-                Err(e) => eprint!("{e}"),
+
+                println!("Created directory: {}", dir_path);
+            } else {
+                let file_path = format!("{}/{}", parent_path, last);
+                match File::create(&file_path) {
+                    Ok(_) => {
+                        self.update_state(&self.current_dir.clone());
+                        self.pop = None;
+                    }
+                    Err(e) => eprint!("{e}"),
+                }
             }
-        };
+        }
     }
 
     fn get_sub_files(&mut self) {
@@ -417,7 +432,7 @@ impl FileManagerState {
             let inputp = Paragraph::new(input.clone()).block(
                 Block::bordered()
                     .border_type(Rounded)
-                    .title("Create")
+                    .title("Create:")
                     .blue(),
             );
 
