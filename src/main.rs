@@ -222,6 +222,7 @@ impl FileManagerState {
                     let mut new_dir = self.current_dir.clone();
                     new_dir.push(&selected_file.name);
                     self.update_state(new_dir);
+                    self.selected_index = ListState::default().with_selected(Some(0));
                 }
             }
         }
