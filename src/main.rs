@@ -38,8 +38,7 @@ pub enum PopUI {
 
 #[derive(Debug)]
 pub struct FileManagerState {
-    parent_items: Vec<ListsItem>,
-    parent_dir: Option<PathBuf>,   // The parent's dir
+    parent: Parent,
     current_dir: PathBuf,          // The path currently in
     current_items: Vec<ListsItem>, // Items in the current directory
     child_items: Preview,          // Items in the selected subdirectory
@@ -48,14 +47,21 @@ pub struct FileManagerState {
     pop: Option<PopUI>,
 }
 
+#[derive(Debug)]
+pub struct Parent {
+    parent_items: Vec<ListsItem>,
+    parent_dir: Option<PathBuf>, // The parent's dir
+}
 impl FileManagerState {
     fn new(star_dir: &PathBuf) -> Self {
         let (files, parent_dir, parent_items) = get_state_data(star_dir);
         Self {
-            parent_items,
+            parent: Parent {
+                parent_dir,
+                parent_items,
+            },
             current_items: files,
             current_dir: star_dir.into(),
-            parent_dir,
             child_items: Preview::Directory(vec![]),
             selected_index: ListState::default().with_selected(Some(0)),
             pop: None,
@@ -68,8 +74,8 @@ impl FileManagerState {
 
         self.current_dir = new_dir;
         self.current_items = files;
-        self.parent_dir = parent_dir;
-        self.parent_items = parent_items;
+        self.parent.parent_dir = parent_dir;
+        self.parent.parent_items = parent_items;
     }
 
     fn get_file_update_state(&mut self, items: Vec<ListsItem>) {
@@ -210,8 +216,8 @@ impl FileManagerState {
     }
 
     fn previous_dir(&mut self) {
-        if let Some(ref parent) = self.parent_dir {
-            self.update_state(parent.into());
+        if let Some(ref parent) = self.parent.parent_dir {
+            self.update_state(parent.to_path_buf());
         }
     }
 

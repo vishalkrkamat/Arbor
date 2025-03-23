@@ -12,7 +12,7 @@ use ratatui::{
 impl FileManagerState {
     pub fn render(&mut self, f: &mut Frame) {
         let ustate = &mut self.selected_index;
-        let parent_files = &self.parent_items;
+        let parent_files = &self.parent.parent_items;
         let current_files = &self.current_items;
         let list_current_items: Vec<ListItem> = convert_to_listitems(current_files).unwrap();
 
