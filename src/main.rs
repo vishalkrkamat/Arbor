@@ -148,30 +148,44 @@ impl FileManagerState {
             }
 
             if is_dir {
-                let dir_path = PathBuf::from(format!("{}/{}", parent_path, last));
-
-                match fs::create_dir_all(dir_path) {
-                    Ok(_) => {
-                        self.update_state(self.current_dir.clone());
-                        self.temp = "".into();
-                        self.pop = None;
-                    }
-                    Err(e) => eprint!("{e}"),
+                if parent_path.is_empty() {
+                    let dir_path = PathBuf::from(last.to_string());
+                    self.create_dir(dir_path);
+                } else {
+                    let dir_path = PathBuf::from(format!("{}/{}", parent_path, last));
+                    self.create_dir(dir_path);
                 }
+            } else if parent_path.is_empty() {
+                let file_path = PathBuf::from(last.to_string());
+                self.create_file(file_path);
             } else {
                 let file_path = PathBuf::from(format!("{}/{}", parent_path, last));
-                match File::create(&file_path) {
-                    Ok(_) => {
-                        self.update_state(self.current_dir.clone());
-                        self.temp = "".into();
-                        self.pop = None;
-                    }
-                    Err(e) => eprint!("{e}"),
-                }
+
+                self.create_file(file_path);
             }
         }
     }
-
+    fn create_dir(&mut self, dir_path: PathBuf) {
+        match fs::create_dir_all(dir_path) {
+            Ok(_) => {
+                self.creation_file_toggle();
+            }
+            Err(e) => eprint!("{e}"),
+        }
+    }
+    fn create_file(&mut self, file_name: PathBuf) {
+        match File::create(file_name) {
+            Ok(_) => {
+                self.creation_file_toggle();
+            }
+            Err(e) => eprint!("{e}"),
+        }
+    }
+    fn creation_file_toggle(&mut self) {
+        self.update_state(self.current_dir.clone());
+        self.temp = "".into();
+        self.pop = None;
+    }
     fn get_sub_files(&mut self) {
         if let Some(loc) = self.selected_index.selected() {
             if let Some(selected_dir) = self.current_items.get(loc) {
