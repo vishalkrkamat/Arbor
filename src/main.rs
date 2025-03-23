@@ -51,7 +51,9 @@ pub struct FileManagerState {
 pub struct Parent {
     parent_items: Vec<ListsItem>,
     parent_dir: Option<PathBuf>, // The parent's dir
+    selected: ListState,
 }
+
 impl FileManagerState {
     fn new(star_dir: &PathBuf) -> Self {
         let (files, parent_dir, parent_items) = get_state_data(star_dir);
@@ -59,6 +61,7 @@ impl FileManagerState {
             parent: Parent {
                 parent_dir,
                 parent_items,
+                selected: ListState::default(),
             },
             current_items: files,
             current_dir: star_dir.into(),
@@ -80,6 +83,7 @@ impl FileManagerState {
 
     fn get_file_update_state(&mut self, items: Vec<ListsItem>) {
         self.child_items = Preview::Directory(items);
+        self.get_parent_index();
     }
 
     fn update_file_state_file(&mut self, con: String) {
@@ -215,9 +219,28 @@ impl FileManagerState {
         self.get_sub_files();
     }
 
+    fn get_parent_index(&mut self) {
+        if let Some(name) = self
+            .current_dir
+            .file_name()
+            .map(|name| name.to_string_lossy())
+        {
+            if let Some(index) = self
+                .parent
+                .parent_items
+                .iter()
+                .position(|item| item.name == name)
+            {
+                self.parent.selected = ListState::default().with_selected(Some(index));
+            };
+        }
+    }
+
     fn previous_dir(&mut self) {
         if let Some(ref parent) = self.parent.parent_dir {
             self.update_state(parent.to_path_buf());
+            self.selected_index = self.parent.selected.clone();
+            self.get_sub_files();
         }
     }
 
@@ -228,7 +251,9 @@ impl FileManagerState {
                     let mut new_dir = self.current_dir.clone();
                     new_dir.push(&selected_file.name);
                     self.update_state(new_dir);
+                    self.parent.selected = self.selected_index.clone();
                     self.selected_index = ListState::default().with_selected(Some(0));
+                    self.get_sub_files();
                 }
             }
         }
