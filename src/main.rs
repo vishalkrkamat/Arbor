@@ -148,49 +148,38 @@ impl FileManagerState {
                 }
             }
 
-            if is_dir {
-                if parent_path.is_empty() {
-                    let dir_path = PathBuf::from(last.to_string());
-                    self.create_dir(dir_path);
-                } else {
-                    let dir_path = PathBuf::from(format!("{}/{}", parent_path, last));
-                    self.create_dir(dir_path);
-                }
-            } else if parent_path.is_empty() {
-                let file_path = PathBuf::from(last.to_string());
-                self.create_file(file_path);
+            let path = if parent_path.is_empty() {
+                PathBuf::from(last)
             } else {
-                let file_path = PathBuf::from(format!("{}/{}", parent_path, last));
-
-                self.create_file(file_path);
+                let mut path = PathBuf::from(parent_path);
+                path.push(last);
+                path
+            };
+            if is_dir {
+                self.create_dir(path);
+            } else {
+                self.create_file(path);
             }
         }
     }
 
     fn create_dir(&mut self, dir_path: PathBuf) {
-        let mut path = self.current_dir.clone();
-        path.push(&dir_path);
-        match fs::create_dir_all(path) {
-            Ok(_) => {
-                self.creation_file_toggle();
-            }
-            Err(e) => eprint!("{e}"),
+        if let Err(e) = fs::create_dir_all(&dir_path) {
+            eprintln!("Error creating directory {:?} {}", dir_path, e);
+        } else {
+            self.on_creation_success();
         }
     }
 
-    fn create_file(&mut self, file_name: PathBuf) {
-        let mut path = self.current_dir.clone();
-        path.push(&file_name);
-
-        match File::create(path) {
-            Ok(_) => {
-                self.creation_file_toggle();
-            }
-            Err(e) => eprint!("{e}"),
+    fn create_file(&mut self, file_path: PathBuf) {
+        if let Err(e) = File::create(&file_path) {
+            eprintln!("Error creating a file {:?} {}", file_path, e);
+        } else {
+            self.on_creation_success();
         }
     }
 
-    fn creation_file_toggle(&mut self) {
+    fn on_creation_success(&mut self) {
         self.update_state(self.current_dir.clone());
         self.temp = "".into();
         self.pop = None;
