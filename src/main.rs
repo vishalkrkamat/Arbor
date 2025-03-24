@@ -187,30 +187,22 @@ impl FileManagerState {
 
     fn get_sub_files(&mut self) {
         if let Some(loc) = self.selected_index.selected() {
-            if let Some(selected_dir) = self.current_items.get(loc) {
-                let current_dir = &self.current_dir;
-                match selected_dir.item_type {
-                    ItemType::Dir => {
-                        let chilpath = current_dir.join(&selected_dir.name);
-                        let sub_files = utils::list_dir(&chilpath).unwrap();
-                        self.get_file_update_state(sub_files);
-                    }
-                    ItemType::File => {
-                        if let Some(loc) = self.selected_index.selected() {
-                            if let Some(selected_file) = self.current_items.get(loc) {
-                                let current_file =
-                                    self.current_dir.clone().join(selected_file.name.clone());
-                                match fs::read_to_string(&current_file) {
-                                    Ok(con) => self.update_file_state_file(con),
-                                    Err(_) => match fs::read(current_file) {
-                                        Ok(con) => self.update_file_state_binary(con),
-                                        Err(_e) => eprint!("error"),
-                                    },
-                                };
-                            }
-                        }
-                    }
-                };
+            if let Some(selected_item) = self.current_items.get(loc) {
+                let item_path = self.current_dir.join(&selected_item.name);
+
+                match selected_item.item_type {
+                    ItemType::Dir => match utils::list_dir(&item_path) {
+                        Ok(sub_files) => self.get_file_update_state(sub_files),
+                        Err(e) => eprintln!("Error listing directory {:?}: {}", item_path, e),
+                    },
+                    ItemType::File => match fs::read_to_string(&item_path) {
+                        Ok(content) => self.update_file_state_file(content),
+                        Err(_) => match fs::read(&item_path) {
+                            Ok(content) => self.update_file_state_binary(content),
+                            Err(e) => eprintln!("Error reading file {:?}: {}", item_path, e),
+                        },
+                    },
+                }
             }
         }
     }
