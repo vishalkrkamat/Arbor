@@ -99,18 +99,18 @@ impl FileManagerState {
                 let name = file.name.clone();
                 let path = self.current_dir.join(name);
 
-                match file.item_type {
-                    ItemType::File => {
-                        if fs::remove_file(path).is_ok() {
-                            self.pop = None;
-                        };
+                let deletion_result = match file.item_type {
+                    ItemType::File => fs::remove_file(&path),
+                    ItemType::Dir => fs::remove_dir_all(&path),
+                };
+                match deletion_result {
+                    Ok(_) => {
+                        self.pop = None;
                         self.update_state(self.current_dir.clone());
                     }
-                    ItemType::Dir => {
-                        if fs::remove_dir_all(path).is_ok() {
-                            self.pop = None;
-                        };
-                        self.update_state(self.current_dir.clone());
+                    Err(err) => {
+                        // Log or handle the error as needed
+                        eprintln!("Failed to delete {:?}: {}", path, err);
                     }
                 }
             }
