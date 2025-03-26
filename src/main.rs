@@ -36,6 +36,12 @@ pub enum PopUI {
     Creation,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum FileOperation {
+    Move,
+    Copy,
+}
+
 #[derive(Debug)]
 pub struct FileManagerState {
     parent: Parent,
@@ -43,6 +49,7 @@ pub struct FileManagerState {
     current_items: Vec<ListsItem>, // Items in the current directory
     child_items: Preview,          // Items in the selected subdirectory
     selected_index: ListState,     // Which item in current_items is selected
+    file_operation: Option<FileOperation>,
     temp: String,
     pop: Option<PopUI>,
 }
@@ -67,6 +74,7 @@ impl FileManagerState {
             current_dir: star_dir.into(),
             child_items: Preview::Directory(vec![]),
             selected_index: ListState::default().with_selected(Some(0)),
+            file_operation: None,
             pop: None,
             temp: "".to_string(),
         }
@@ -207,6 +215,10 @@ impl FileManagerState {
         }
     }
 
+    fn move_file(&mut self) {
+        todo!()
+    }
+
     fn down(&mut self) {
         self.selected_index.select_next();
         if self.current_items.len() == self.selected_index.selected().unwrap() {
@@ -323,6 +335,7 @@ impl FileManagerState {
                     KeyCode::Char('d') => self.toggle(),
                     KeyCode::Char('r') => self.pop = Some(PopUI::RenameUI),
                     KeyCode::Char('a') => self.pop = Some(PopUI::Creation),
+                    KeyCode::Char('v') => self.move_file(),
                     _ => {}
                 }
             }

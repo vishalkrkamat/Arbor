@@ -27,6 +27,8 @@ impl FileManagerState {
         .split(f.area());
 
         let list = List::new(list_current_items)
+            .highlight_style(Style::default().bg(Color::Blue).fg(Color::Black))
+            .add_modifier(Modifier::BOLD)
             .highlight_symbol(">>")
             .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));
         let list_parent_files = List::new(list_parent_items)
