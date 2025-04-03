@@ -1,12 +1,13 @@
-use std::fs;
+mod event_handler;
 mod ui;
 mod utils;
-use crossterm::event::{self, Event, KeyCode};
-use ratatui::{widgets::ListState, DefaultTerminal};
-use std::{fs::File, io, path::PathBuf};
+use ratatui::widgets::ListState;
+use std::fs;
+use std::fs::File;
+use std::path::PathBuf;
 use utils::get_state_data;
-
 #[derive(Debug, Clone)]
+
 enum ItemType {
     File,
     Dir,
@@ -36,12 +37,6 @@ pub enum PopUI {
     Creation,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum FileOperation {
-    Move,
-    Copy,
-}
-
 #[derive(Debug)]
 pub struct FileManagerState {
     parent: Parent,
@@ -49,7 +44,6 @@ pub struct FileManagerState {
     current_items: Vec<ListsItem>, // Items in the current directory
     child_items: Preview,          // Items in the selected subdirectory
     selected_index: ListState,     // Which item in current_items is selected
-    file_operation: Option<FileOperation>,
     temp: String,
     pop: Option<PopUI>,
 }
@@ -74,7 +68,6 @@ impl FileManagerState {
             current_dir: star_dir.into(),
             child_items: Preview::Directory(vec![]),
             selected_index: ListState::default().with_selected(Some(0)),
-            file_operation: None,
             pop: None,
             temp: "".to_string(),
         }
@@ -274,73 +267,6 @@ impl FileManagerState {
                 }
             }
         }
-    }
-
-    fn run(mut self, mut terminal: DefaultTerminal) -> io::Result<()> {
-        loop {
-            terminal.draw(|f| self.render(f))?;
-
-            if let Event::Key(key) = event::read()? {
-                if let Some(PopUI::Confirmation) = self.pop.clone() {
-                    match key.code {
-                        KeyCode::Char('n') => self.toggle(),
-                        KeyCode::Char('y') => self.delete(),
-                        _ => {}
-                    }
-                    continue;
-                }
-
-                if let Some(PopUI::RenameUI) = self.pop.clone() {
-                    match key.code {
-                        KeyCode::Char(c) => {
-                            self.temp.push(c);
-                        }
-                        // Append character to input
-                        KeyCode::Backspace => {
-                            self.temp.pop();
-                        } // Remove last character
-                        KeyCode::Enter => {
-                            self.rename(&mut self.temp.clone());
-                        }
-                        KeyCode::Esc => self.pop = None,
-                        _ => {}
-                    }
-                    continue;
-                }
-
-                if let Some(PopUI::Creation) = self.pop.clone() {
-                    match key.code {
-                        KeyCode::Char(c) => {
-                            self.temp.push(c);
-                        }
-                        // Append character to input
-                        KeyCode::Backspace => {
-                            self.temp.pop();
-                        } // Remove last character
-                        KeyCode::Enter => {
-                            self.create(self.temp.clone());
-                        }
-                        KeyCode::Esc => self.pop = None,
-                        _ => {}
-                    }
-                    continue;
-                }
-
-                match key.code {
-                    KeyCode::Char('q') => break,
-                    KeyCode::Char('j') => self.down(),
-                    KeyCode::Char('k') => self.up(),
-                    KeyCode::Char('h') => self.previous_dir(),
-                    KeyCode::Char('l') => self.next_dir(),
-                    KeyCode::Char('d') => self.toggle(),
-                    KeyCode::Char('r') => self.pop = Some(PopUI::RenameUI),
-                    KeyCode::Char('a') => self.pop = Some(PopUI::Creation),
-                    KeyCode::Char('v') => self.move_file(),
-                    _ => {}
-                }
-            }
-        }
-        Ok(())
     }
 
     fn toggle(&mut self) {
