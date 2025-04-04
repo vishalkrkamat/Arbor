@@ -1,6 +1,8 @@
 use crate::ItemType;
 use crate::ListsItem;
 use ratatui::layout::{Constraint, Flex, Layout, Rect};
+use ratatui::style::{Color, Style};
+use ratatui::text::Span;
 use ratatui::widgets::ListItem;
 use std::path::PathBuf;
 use std::{fs, io};
@@ -18,6 +20,7 @@ pub fn list_dir(p: &PathBuf) -> std::io::Result<Vec<ListsItem>> {
         let item = ListsItem {
             name: entry.file_name().into_string().unwrap(),
             item_type: file_type,
+            selected: false,
         };
         items.push(item);
     }
@@ -40,7 +43,13 @@ pub fn convert_to_listitems(f: &[ListsItem]) -> io::Result<Vec<ListItem>> {
                 ItemType::Dir => format!("📁 {}", item.name),
                 ItemType::File => format!("📄 {}", item.name),
             };
-            ListItem::new(display)
+            let mut style = Style::default();
+            if item.selected {
+                style = style.bg(Color::DarkGray);
+            } else {
+                style = Style::default();
+            }
+            ListItem::new(Span::styled(display, style))
         })
         .collect();
     Ok(list_items)

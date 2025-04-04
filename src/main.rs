@@ -6,17 +6,18 @@ use std::fs;
 use std::fs::File;
 use std::path::PathBuf;
 use utils::get_state_data;
-#[derive(Debug, Clone)]
 
+#[derive(Debug, Clone, PartialEq)]
 enum ItemType {
     File,
     Dir,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ListsItem {
     name: String,
     item_type: ItemType,
+    selected: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -24,6 +25,7 @@ pub enum FileType {
     Text(String),
     Byes(Vec<u8>),
 }
+
 #[derive(Debug, Clone)]
 pub enum Preview {
     Files(FileType),
@@ -37,6 +39,12 @@ pub enum PopUI {
     Creation,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Mode {
+    Normal,
+    Selection,
+}
+
 #[derive(Debug)]
 pub struct FileManagerState {
     parent: Parent,
@@ -44,6 +52,8 @@ pub struct FileManagerState {
     current_items: Vec<ListsItem>, // Items in the current directory
     child_items: Preview,          // Items in the selected subdirectory
     selected_index: ListState,     // Which item in current_items is selected
+    mode: Mode,
+    selected_items: Vec<ListsItem>,
     temp: String,
     pop: Option<PopUI>,
 }
@@ -67,6 +77,8 @@ impl FileManagerState {
             current_items: files,
             current_dir: star_dir.into(),
             child_items: Preview::Directory(vec![]),
+            mode: Mode::Normal,
+            selected_items: vec![],
             selected_index: ListState::default().with_selected(Some(0)),
             pop: None,
             temp: "".to_string(),
@@ -186,6 +198,10 @@ impl FileManagerState {
         self.pop = None;
     }
 
+    fn copy(&mut self) {
+        todo!()
+    }
+
     fn get_sub_files(&mut self) {
         if let Some(loc) = self.selected_index.selected() {
             if let Some(selected_item) = self.current_items.get(loc) {
@@ -208,11 +224,29 @@ impl FileManagerState {
         }
     }
 
-    fn move_file(&mut self) {
-        todo!()
+    fn select(&mut self) {
+        if let Mode::Selection = self.mode {
+            if let Some(loc) = self.selected_index.selected() {
+                if let Some(selected_item) = self.current_items.get_mut(loc) {
+                    selected_item.selected = true;
+                }
+            }
+        }
+    }
+
+    fn unselect(&mut self) {
+        if let Mode::Normal = self.mode {
+            for i in 0..self.current_items.len() {
+                if let Some(selected_item) = self.current_items.get_mut(i) {
+                    selected_item.selected = false;
+                    self.update_state(self.current_dir.clone());
+                }
+            }
+        }
     }
 
     fn down(&mut self) {
+        self.select();
         self.selected_index.select_next();
         if self.current_items.len() == self.selected_index.selected().unwrap() {
             self.selected_index.select(Some(0));
@@ -221,6 +255,7 @@ impl FileManagerState {
     }
 
     fn up(&mut self) {
+        self.select();
         let lastl = self.current_items.len();
         if self.selected_index.selected().unwrap() == 0 {
             self.selected_index.select(Some(lastl));
