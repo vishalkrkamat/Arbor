@@ -4,7 +4,7 @@ mod utils;
 use ratatui::widgets::ListState;
 use std::fs;
 use std::fs::File;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use utils::get_state_data;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -53,7 +53,7 @@ pub struct FileManagerState {
     child_items: Preview,          // Items in the selected subdirectory
     selected_index: ListState,     // Which item in current_items is selected
     mode: Mode,
-    selected_items: Vec<ListsItem>,
+    selected_items: Vec<PathBuf>,
     temp: String,
     pop: Option<PopUI>,
 }
@@ -199,6 +199,19 @@ impl FileManagerState {
     }
 
     fn copy(&mut self) {
+        let selected_field: Vec<PathBuf> = self
+            .current_items
+            .iter()
+            .filter(|x| x.selected)
+            .filter_map(|x| {
+                let file = &x.name;
+                Path::new(file).canonicalize().ok()
+            })
+            .collect();
+        self.selected_items = selected_field;
+    }
+
+    fn paste(&mut self) {
         todo!()
     }
 

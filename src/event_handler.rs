@@ -66,6 +66,7 @@ impl FileManagerState {
                         KeyCode::Char('r') => self.pop = Some(PopUI::RenameUI),
                         KeyCode::Char('a') => self.pop = Some(PopUI::Creation),
                         KeyCode::Char('y') => self.copy(),
+                        KeyCode::Char('p') => self.paste(),
                         KeyCode::Esc => self.unselect(),
                         KeyCode::Char('v') => {
                             self.mode = Mode::Selection;
