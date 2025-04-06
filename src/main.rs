@@ -83,6 +83,7 @@ impl FileManagerState {
             temp: "".to_string(),
         };
         state.get_sub_files();
+        state.get_parent_index();
         state
     }
 
@@ -101,6 +102,7 @@ impl FileManagerState {
 
     fn update_file_state_file(&mut self, con: String) {
         self.child_items = Preview::Files(FileType::Text(con));
+        self.get_parent_index();
     }
 
     fn update_file_state_binary(&mut self, con: Vec<u8>) {
@@ -123,7 +125,6 @@ impl FileManagerState {
                         self.update_state(self.current_dir.clone());
                     }
                     Err(err) => {
-                        // Log or handle the error as needed
                         eprintln!("Failed to delete {:?}: {}", path, err);
                     }
                 }
