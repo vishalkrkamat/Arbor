@@ -3,7 +3,6 @@ mod ui;
 mod utils;
 use ratatui::widgets::ListState;
 use std::fs;
-use std::fs::File;
 use std::path::{Path, PathBuf};
 use utils::get_state_data;
 
@@ -148,45 +147,41 @@ impl FileManagerState {
 
     fn create(&mut self, input: String) {
         let is_dir = input.ends_with('/');
-        let mut parts: Vec<&str> = input.trim_end_matches('/').split('/').collect();
+        let input = input.trim_end_matches('/');
+        let mut parts: Vec<&str> = input.split('/').collect();
 
         if let Some(last) = parts.pop() {
-            let parent_path = parts.join("/");
-
-            if !parent_path.is_empty() {
-                let mut current_path = self.current_dir.clone();
-                current_path.push(&parent_path);
-                if let Err(e) = fs::create_dir_all(current_path) {
-                    eprintln!("Error creating directory: {e}");
-                }
+            let mut base_path = self.current_dir.clone();
+            for part in parts {
+                base_path.push(part);
             }
 
-            let path = if parent_path.is_empty() {
-                PathBuf::from(last)
-            } else {
-                let mut path = PathBuf::from(parent_path);
-                path.push(last);
-                path
-            };
+            if let Err(e) = fs::create_dir_all(&base_path) {
+                eprintln!("Error creating parent directories: {e}");
+                return;
+            }
+
+            base_path.push(last);
+
             if is_dir {
-                self.create_dir(path);
+                self.create_dir(base_path);
             } else {
-                self.create_file(path);
+                self.create_file(base_path);
             }
         }
     }
 
-    fn create_dir(&mut self, dir_path: PathBuf) {
-        if let Err(e) = fs::create_dir_all(&dir_path) {
-            eprintln!("Error creating directory {:?} {}", dir_path, e);
+    fn create_dir(&mut self, path: PathBuf) {
+        if let Err(e) = fs::create_dir_all(&path) {
+            eprintln!("Error creating directory {:?}: {}", path, e);
         } else {
             self.on_creation_success();
         }
     }
 
-    fn create_file(&mut self, file_path: PathBuf) {
-        if let Err(e) = File::create(&file_path) {
-            eprintln!("Error creating a file {:?} {}", file_path, e);
+    fn create_file(&mut self, path: PathBuf) {
+        if let Err(e) = fs::File::create(&path) {
+            eprintln!("Error creating file {:?}: {}", path, e);
         } else {
             self.on_creation_success();
         }
@@ -212,7 +207,11 @@ impl FileManagerState {
     }
 
     fn paste(&mut self) {
-        todo!()
+        for i in self.selected_items.iter() {
+            let cur_dir = self.current_dir.join(i.file_name().unwrap());
+            fs::copy(i, &cur_dir);
+        }
+        self.update_state(self.current_dir.clone());
     }
 
     fn get_sub_files(&mut self) {
