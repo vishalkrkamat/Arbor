@@ -67,7 +67,7 @@ pub struct Parent {
 impl FileManagerState {
     fn new(star_dir: &PathBuf) -> Self {
         let (files, parent_dir, parent_items) = get_state_data(star_dir);
-        Self {
+        let mut state = Self {
             parent: Parent {
                 parent_dir,
                 parent_items,
@@ -81,7 +81,9 @@ impl FileManagerState {
             selected_index: ListState::default().with_selected(Some(0)),
             pop: None,
             temp: "".to_string(),
-        }
+        };
+        state.get_sub_files();
+        state
     }
 
     fn update_state(&mut self, new_dir: PathBuf) {
