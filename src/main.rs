@@ -3,7 +3,7 @@ mod ui;
 mod utils;
 use ratatui::widgets::ListState;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use utils::get_state_data;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -202,17 +202,19 @@ impl FileManagerState {
             .iter()
             .filter(|x| x.selected)
             .filter_map(|x| {
-                let file = &x.name;
-                Path::new(file).canonicalize().ok()
+                let abs_path = self.current_dir.join(&x.name);
+                abs_path.canonicalize().ok()
             })
             .collect();
         self.selected_items = selected_field;
     }
 
     fn paste(&mut self) {
+        println!("{:?}", self.selected_items);
         for i in self.selected_items.iter() {
             let cur_dir = self.current_dir.join(i.file_name().unwrap());
-            fs::copy(i, &cur_dir);
+            println!("{i:?} and {cur_dir:?}");
+            let _ = fs::copy(i, &cur_dir).unwrap();
         }
         self.update_state(self.current_dir.clone());
     }
