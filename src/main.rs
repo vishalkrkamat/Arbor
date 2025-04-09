@@ -132,6 +132,22 @@ impl FileManagerState {
         }
     }
 
+    fn mass_deletion(&mut self) {
+        let selected_field = self.get_selected_items();
+
+        for i in selected_field.iter() {
+            if i.is_file() {
+                fs::remove_file(i).unwrap();
+            } else {
+                fs::remove_dir_all(i).unwrap();
+            }
+        }
+
+        self.update_state(self.current_dir.clone());
+        self.toggle();
+        self.mode = Mode::Normal;
+    }
+
     fn rename(&mut self, input: &mut String) {
         if let Some(ind) = self.selected_index.selected() {
             if let Some(sel) = self.current_items.get(ind) {
@@ -197,15 +213,7 @@ impl FileManagerState {
     }
 
     fn copy(&mut self) {
-        let selected_field: Vec<PathBuf> = self
-            .current_items
-            .iter()
-            .filter(|x| x.selected)
-            .filter_map(|x| {
-                let abs_path = self.current_dir.join(&x.name);
-                abs_path.canonicalize().ok()
-            })
-            .collect();
+        let selected_field = self.get_selected_items();
         self.selected_items = selected_field;
     }
 
@@ -245,6 +253,19 @@ impl FileManagerState {
                 }
             }
         }
+    }
+
+    fn get_selected_items(&mut self) -> Vec<PathBuf> {
+        let selected_field: Vec<PathBuf> = self
+            .current_items
+            .iter()
+            .filter(|x| x.selected)
+            .filter_map(|x| {
+                let abs_path = self.current_dir.join(&x.name);
+                abs_path.canonicalize().ok()
+            })
+            .collect();
+        selected_field
     }
 
     fn get_sub_files(&mut self) {

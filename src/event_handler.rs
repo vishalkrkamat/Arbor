@@ -14,7 +14,10 @@ impl FileManagerState {
                 if let Some(PopUI::Confirmation) = self.pop.clone() {
                     match key.code {
                         KeyCode::Char('n') => self.toggle(),
-                        KeyCode::Char('y') => self.delete(),
+                        KeyCode::Char('y') => match self.mode {
+                            Mode::Normal => self.delete(),
+                            Mode::Selection => self.mass_deletion(),
+                        },
                         _ => {}
                     }
                     continue;
@@ -85,6 +88,7 @@ impl FileManagerState {
                     match key.code {
                         KeyCode::Char('j') => self.down(),
                         KeyCode::Char('k') => self.up(),
+                        KeyCode::Char('d') => self.toggle(),
                         KeyCode::Char('q') => break,
                         KeyCode::Esc => self.mode = Mode::Normal,
                         _ => {}
