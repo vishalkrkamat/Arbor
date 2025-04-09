@@ -210,13 +210,41 @@ impl FileManagerState {
     }
 
     fn paste(&mut self) {
-        println!("{:?}", self.selected_items);
-        for i in self.selected_items.iter() {
-            let cur_dir = self.current_dir.join(i.file_name().unwrap());
-            println!("{i:?} and {cur_dir:?}");
-            let _ = fs::copy(i, &cur_dir).unwrap();
+        let selected_items = self.selected_items.clone();
+
+        for src in selected_items.iter() {
+            let dst = self.current_dir.join(src.file_name().unwrap());
+
+            if src.is_file() {
+                let _ = fs::copy(src, &dst);
+            } else if src.is_dir() {
+                self.dir_paste(src, &dst);
+            }
         }
+
         self.update_state(self.current_dir.clone());
+    }
+
+    fn dir_paste(&self, src: &PathBuf, dst: &PathBuf) {
+        if let Err(e) = fs::create_dir_all(dst) {
+            eprintln!("Failed to create directory {:?}: {}", dst, e);
+            return;
+        }
+
+        if let Ok(entries) = fs::read_dir(src) {
+            for entry in entries.flatten() {
+                let child_src = entry.path();
+                let child_dst = dst.join(entry.file_name());
+
+                if child_src.is_file() {
+                    if let Err(e) = fs::copy(&child_src, &child_dst) {
+                        eprintln!("Failed to copy file {:?}: {}", child_src, e);
+                    }
+                } else if child_src.is_dir() {
+                    self.dir_paste(&child_src, &child_dst);
+                }
+            }
+        }
     }
 
     fn get_sub_files(&mut self) {
