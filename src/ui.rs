@@ -1,6 +1,7 @@
 use crate::utils::{convert_to_listitems, popup_area};
 use crate::FileManagerState;
 use crate::FileType;
+use crate::Mode;
 use crate::PopUI;
 use crate::Preview;
 use ratatui::prelude::*;
@@ -73,11 +74,42 @@ impl FileManagerState {
         f.render_stateful_widget(list, layout[1], ustate);
 
         if let Some(PopUI::Confirmation) = self.pop.clone() {
+            let mut list_of_file = Paragraph::new("").wrap(Wrap { trim: false }); // placeholder
+
+            match self.mode {
+                Mode::Normal => {
+                    if let Some(loc) = self.selected_index.selected() {
+                        if let Some(file) = self.current_items.get(loc) {
+                            let name = file.name.clone();
+                            let path = self.current_dir.join(name).to_string_lossy().to_string();
+
+                            list_of_file = Paragraph::new(path)
+                                .alignment(Alignment::Left)
+                                .wrap(Wrap { trim: false });
+                        }
+                    }
+                }
+
+                Mode::Selection => {
+                    let selected_field = self.get_selected_items();
+                    let mut text = vec![Line::from("")];
+                    for file in selected_field {
+                        text.push(Line::from(file.to_string_lossy().to_string()));
+                    }
+
+                    list_of_file = Paragraph::new(text)
+                        .alignment(Alignment::Left)
+                        .wrap(Wrap { trim: false });
+                }
+            };
+
             let block = Block::bordered()
                 .border_type(Rounded)
                 .title("Confirm your action")
                 .blue();
             let area = popup_area(f.area(), 37, 40);
+
+            let inner_area = block.inner(area);
 
             let section = Layout::default()
                 .direction(Direction::Vertical)
@@ -86,7 +118,12 @@ impl FileManagerState {
                     Constraint::Length(1),
                     Constraint::Percentage(10),
                 ])
-                .split(area);
+                .split(inner_area);
+
+            let sub_section = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints(vec![Constraint::Percentage(100)])
+                .split(section[0]);
 
             let separator = Paragraph::new(Span::styled(
                 "─".repeat(section[1].width as usize),
@@ -111,7 +148,7 @@ impl FileManagerState {
 
             f.render_widget(Clear, area);
             f.render_widget(block, area);
-
+            f.render_widget(list_of_file, sub_section[0]);
             f.render_widget(separator, vertical[0]);
             f.render_widget(options, section2[0]);
             f.render_widget(options1, section2[1]);
