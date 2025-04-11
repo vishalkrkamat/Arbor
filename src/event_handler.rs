@@ -1,82 +1,84 @@
-use crate::FileManagerState;
-use crate::Mode;
-use crate::PopUI;
+use crate::FileManager;
+use crate::InteractionMode;
+use crate::PopupType;
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::DefaultTerminal;
 use std::io;
 
-impl FileManagerState {
+impl FileManager {
     pub fn run(mut self, mut terminal: DefaultTerminal) -> io::Result<()> {
         loop {
             terminal.draw(|f| self.render(f))?;
 
             if let Event::Key(key) = event::read()? {
-                if let Some(PopUI::Confirmation) = self.pop.clone() {
+                if let Some(PopupType::Confirm) = self.popup.clone() {
                     match key.code {
-                        KeyCode::Char('n') => self.toggle(),
+                        KeyCode::Char('n') => self.toggle_confirmation_popup(),
                         KeyCode::Char('y') => match self.mode {
-                            Mode::Normal => self.delete(),
-                            Mode::Selection => self.mass_deletion(),
+                            InteractionMode::Normal => self.delete_selected(),
+                            InteractionMode::MultiSelect => self.delete_multiple(),
                         },
                         _ => {}
                     }
                     continue;
                 }
 
-                if let Some(PopUI::RenameUI) = self.pop.clone() {
+                if let Some(PopupType::Rename) = self.popup.clone() {
                     match key.code {
-                        KeyCode::Char(c) => {
-                            self.temp.push(c);
+                        KeyCode::Char(input) => {
+                            self.input_buffer.push(input);
                         }
                         // Append character to input
                         KeyCode::Backspace => {
-                            self.temp.pop();
+                            self.input_buffer.pop();
                         } // Remove last character
                         KeyCode::Enter => {
-                            self.rename(&mut self.temp.clone());
+                            self.rename_selected(&mut self.input_buffer.clone());
                         }
-                        KeyCode::Esc => self.pop = None,
+                        KeyCode::Esc => self.popup = None,
                         _ => {}
                     }
                     continue;
                 }
 
-                if let Some(PopUI::Creation) = self.pop.clone() {
+                if let Some(PopupType::Create) = self.popup.clone() {
                     match key.code {
                         KeyCode::Char(c) => {
-                            self.temp.push(c);
+                            self.input_buffer.push(c);
                         }
                         // Append character to input
                         KeyCode::Backspace => {
-                            self.temp.pop();
+                            self.input_buffer.pop();
                         } // Remove last character
                         KeyCode::Enter => {
-                            self.create(self.temp.clone());
+                            self.create_entry(self.input_buffer.clone());
                         }
-                        KeyCode::Esc => self.pop = None,
+                        KeyCode::Esc => self.popup = None,
                         _ => {}
                     }
                     continue;
                 }
-                if let Mode::Normal = self.mode {
+                if let InteractionMode::Normal = self.mode {
                     match key.code {
                         KeyCode::Char('q') => break,
-                        KeyCode::Char('j') => self.down(),
-                        KeyCode::Char('k') => self.up(),
-                        KeyCode::Char('h') => self.previous_dir(),
-                        KeyCode::Char('l') => self.next_dir(),
-                        KeyCode::Char('d') => self.toggle(),
-                        KeyCode::Char('r') => self.pop = Some(PopUI::RenameUI),
-                        KeyCode::Char('a') => self.pop = Some(PopUI::Creation),
-                        KeyCode::Char('y') => self.copy(),
-                        KeyCode::Char('p') => self.paste(),
-                        KeyCode::Esc => self.unselect(),
+                        KeyCode::Char('j') => self.navigate_down(),
+                        KeyCode::Char('k') => self.navigate_up(),
+                        KeyCode::Char('h') => self.navigate_to_parent(),
+                        KeyCode::Char('l') => self.navigate_to_child(),
+                        KeyCode::Char('d') => self.toggle_confirmation_popup(),
+                        KeyCode::Char('r') => self.popup = Some(PopupType::Rename),
+                        KeyCode::Char('a') => self.popup = Some(PopupType::Create),
+                        KeyCode::Char('y') => self.copy_selected(),
+                        KeyCode::Char('p') => self.paste_clipboard(),
+                        KeyCode::Esc => self.deselect_all(),
                         KeyCode::Char('v') => {
-                            self.mode = Mode::Selection;
-                            if let Mode::Selection = self.mode {
-                                if let Some(loc) = self.selected_index.selected() {
-                                    if let Some(selected_item) = self.current_items.get_mut(loc) {
-                                        selected_item.selected = true;
+                            self.mode = InteractionMode::MultiSelect;
+                            if let InteractionMode::MultiSelect = self.mode {
+                                if let Some(current_selection) = self.selection.selected() {
+                                    if let Some(selected_item) =
+                                        self.entries.get_mut(current_selection)
+                                    {
+                                        selected_item.is_selected = true;
                                     }
                                 }
                             }
@@ -84,13 +86,13 @@ impl FileManagerState {
                         _ => {}
                     }
                 }
-                if let Mode::Selection = self.mode {
+                if let InteractionMode::MultiSelect = self.mode {
                     match key.code {
-                        KeyCode::Char('j') => self.down(),
-                        KeyCode::Char('k') => self.up(),
-                        KeyCode::Char('d') => self.toggle(),
+                        KeyCode::Char('j') => self.navigate_down(),
+                        KeyCode::Char('k') => self.navigate_up(),
+                        KeyCode::Char('d') => self.toggle_confirmation_popup(),
                         KeyCode::Char('q') => break,
-                        KeyCode::Esc => self.mode = Mode::Normal,
+                        KeyCode::Esc => self.mode = InteractionMode::Normal,
                         _ => {}
                     }
                 }

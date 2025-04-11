@@ -1,5 +1,5 @@
-use crate::ItemType;
-use crate::ListsItem;
+use crate::FsEntry;
+use crate::FsEntryType;
 use ratatui::layout::{Constraint, Flex, Layout, Rect};
 use ratatui::style::{Color, Style};
 use ratatui::text::Span;
@@ -7,26 +7,26 @@ use ratatui::widgets::ListItem;
 use std::path::PathBuf;
 use std::{fs, io};
 
-pub fn list_dir(p: &PathBuf) -> std::io::Result<Vec<ListsItem>> {
+pub fn list_dir(p: &PathBuf) -> std::io::Result<Vec<FsEntry>> {
     let mut items = Vec::new();
     for entry in fs::read_dir(p)? {
         let entry = entry?;
         let meta = entry.metadata()?;
         let file_type = if meta.is_dir() {
-            ItemType::Dir
+            FsEntryType::Directory
         } else {
-            ItemType::File
+            FsEntryType::File
         };
-        let item = ListsItem {
+        let item = FsEntry {
             name: entry.file_name().into_string().unwrap(),
-            item_type: file_type,
-            selected: false,
+            entry_type: file_type,
+            is_selected: false,
         };
         items.push(item);
     }
     Ok(items)
 }
-pub fn get_state_data(start: &PathBuf) -> (Vec<ListsItem>, Option<PathBuf>, Vec<ListsItem>) {
+pub fn get_state_data(start: &PathBuf) -> (Vec<FsEntry>, Option<PathBuf>, Vec<FsEntry>) {
     let files = list_dir(start).unwrap();
     let parent_dir = start.parent().map(|p| p.to_path_buf());
     let parent_items = parent_dir
@@ -35,16 +35,16 @@ pub fn get_state_data(start: &PathBuf) -> (Vec<ListsItem>, Option<PathBuf>, Vec<
     (files, parent_dir, parent_items)
 }
 
-pub fn convert_to_listitems(f: &[ListsItem]) -> io::Result<Vec<ListItem>> {
+pub fn convert_to_listitems(f: &[FsEntry]) -> io::Result<Vec<ListItem>> {
     let list_items: Vec<ListItem> = f
         .iter()
         .map(|item| {
-            let display = match item.item_type {
-                ItemType::Dir => format!("📁 {}", item.name),
-                ItemType::File => format!("📄 {}", item.name),
+            let display = match item.entry_type {
+                FsEntryType::Directory => format!("📁 {}", item.name),
+                FsEntryType::File => format!("📄 {}", item.name),
             };
             let mut style = Style::default();
-            if item.selected {
+            if item.is_selected {
                 style = style.bg(Color::DarkGray);
             } else {
                 style = Style::default();

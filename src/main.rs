@@ -1,288 +1,271 @@
 mod event_handler;
 mod ui;
 mod utils;
+
 use ratatui::widgets::ListState;
 use std::fs;
 use std::path::PathBuf;
 use utils::get_state_data;
 
 #[derive(Debug, Clone, PartialEq)]
-enum ItemType {
+pub enum FsEntryType {
     File,
-    Dir,
+    Directory,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ListsItem {
+pub struct FsEntry {
     name: String,
-    item_type: ItemType,
-    selected: bool,
+    entry_type: FsEntryType,
+    is_selected: bool,
 }
 
 #[derive(Debug, Clone)]
-pub enum FileType {
+pub enum FileContent {
     Text(String),
-    Byes(Vec<u8>),
+    Binary(Vec<u8>),
 }
 
 #[derive(Debug, Clone)]
-pub enum Preview {
-    Files(FileType),
-    Directory(Vec<ListsItem>),
+pub enum PreviewContent {
+    File(FileContent),
+    Directory(Vec<FsEntry>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum PopUI {
-    Confirmation,
-    RenameUI,
-    Creation,
+pub enum PopupType {
+    Confirm,
+    Rename,
+    Create,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Mode {
+pub enum InteractionMode {
     Normal,
-    Selection,
+    MultiSelect,
 }
 
 #[derive(Debug)]
-pub struct FileManagerState {
-    parent: Parent,
-    current_dir: PathBuf,          // The path currently in
-    current_items: Vec<ListsItem>, // Items in the current directory
-    child_items: Preview,          // Items in the selected subdirectory
-    selected_index: ListState,     // Which item in current_items is selected
-    mode: Mode,
-    selected_items: Vec<PathBuf>,
-    temp: String,
-    pop: Option<PopUI>,
+pub struct FileManager {
+    parent_view: ParentView,
+    current_path: PathBuf,
+    entries: Vec<FsEntry>,
+    preview: PreviewContent,
+    selection: ListState,
+    mode: InteractionMode,
+    clipboard: Vec<PathBuf>,
+    input_buffer: String,
+    popup: Option<PopupType>,
 }
 
 #[derive(Debug)]
-pub struct Parent {
-    parent_items: Vec<ListsItem>,
-    parent_dir: Option<PathBuf>, // The parent's dir
-    selected: ListState,
+pub struct ParentView {
+    entries: Vec<FsEntry>,
+    path: Option<PathBuf>,
+    selection: ListState,
 }
 
-impl FileManagerState {
-    fn new(star_dir: &PathBuf) -> Self {
-        let (files, parent_dir, parent_items) = get_state_data(star_dir);
+impl FileManager {
+    fn new(start_path: &PathBuf) -> Self {
+        let (entries, parent_path, parent_entries) = get_state_data(start_path);
+
         let mut state = Self {
-            parent: Parent {
-                parent_dir,
-                parent_items,
-                selected: ListState::default(),
+            parent_view: ParentView {
+                path: parent_path,
+                entries: parent_entries,
+                selection: ListState::default(),
             },
-            current_items: files,
-            current_dir: star_dir.into(),
-            child_items: Preview::Directory(vec![]),
-            mode: Mode::Normal,
-            selected_items: vec![],
-            selected_index: ListState::default().with_selected(Some(0)),
-            pop: None,
-            temp: "".to_string(),
+            current_path: start_path.clone(),
+            entries,
+            preview: PreviewContent::Directory(vec![]),
+            selection: ListState::default().with_selected(Some(0)),
+            mode: InteractionMode::Normal,
+            clipboard: vec![],
+            input_buffer: String::new(),
+            popup: None,
         };
-        state.get_sub_files();
-        state.get_parent_index();
+
+        state.refresh_preview();
+        state.update_parent_selection();
         state
     }
 
-    fn update_state(&mut self, new_dir: PathBuf) {
-        let (files, parent_dir, parent_items) = get_state_data(&new_dir);
-
-        self.current_dir = new_dir;
-        self.current_items = files;
-        self.parent.parent_dir = parent_dir;
-        self.parent.parent_items = parent_items;
-    }
-    fn get_file_update_state(&mut self, items: Vec<ListsItem>) {
-        self.child_items = Preview::Directory(items);
-        self.get_parent_index();
+    fn refresh_current_directory(&mut self, new_path: PathBuf) {
+        let (entries, parent_path, parent_entries) = get_state_data(&new_path);
+        self.current_path = new_path;
+        self.entries = entries;
+        self.parent_view.path = parent_path;
+        self.parent_view.entries = parent_entries;
     }
 
-    fn update_file_state_file(&mut self, con: String) {
-        self.child_items = Preview::Files(FileType::Text(con));
-        self.get_parent_index();
+    fn refresh_preview_with_directory(&mut self, items: Vec<FsEntry>) {
+        self.preview = PreviewContent::Directory(items);
+        self.update_parent_selection();
     }
 
-    fn update_file_state_binary(&mut self, con: Vec<u8>) {
-        self.child_items = Preview::Files(FileType::Byes(con));
+    fn refresh_preview_with_text_file(&mut self, content: String) {
+        self.preview = PreviewContent::File(FileContent::Text(content));
+        self.update_parent_selection();
     }
 
-    fn delete(&mut self) {
-        if let Some(loc) = self.selected_index.selected() {
-            if let Some(file) = self.current_items.get(loc) {
-                let name = file.name.clone();
-                let path = self.current_dir.join(name);
+    fn refresh_preview_with_binary_file(&mut self, content: Vec<u8>) {
+        self.preview = PreviewContent::File(FileContent::Binary(content));
+    }
 
-                let deletion_result = match file.item_type {
-                    ItemType::File => fs::remove_file(&path),
-                    ItemType::Dir => fs::remove_dir_all(&path),
+    fn delete_selected(&mut self) {
+        if let Some(index) = self.selection.selected() {
+            if let Some(entry) = self.entries.get(index) {
+                let path = self.current_path.join(&entry.name);
+                let result = match entry.entry_type {
+                    FsEntryType::File => fs::remove_file(&path),
+                    FsEntryType::Directory => fs::remove_dir_all(&path),
                 };
-                match deletion_result {
-                    Ok(_) => {
-                        self.pop = None;
-                        self.update_state(self.current_dir.clone());
-                    }
-                    Err(err) => {
-                        eprintln!("Failed to delete {:?}: {}", path, err);
-                    }
+
+                if result.is_ok() {
+                    self.popup = None;
+                    self.refresh_current_directory(self.current_path.clone());
+                } else if let Err(err) = result {
+                    eprintln!("Failed to delete {:?}: {}", path, err);
                 }
             }
         }
     }
 
-    fn mass_deletion(&mut self) {
-        let selected_field = self.get_selected_items();
-
-        for i in selected_field.iter() {
-            if i.is_file() {
-                fs::remove_file(i).unwrap();
+    fn delete_multiple(&mut self) {
+        for path in self.get_selected_paths() {
+            let _ = if path.is_file() {
+                fs::remove_file(path)
             } else {
-                fs::remove_dir_all(i).unwrap();
-            }
+                fs::remove_dir_all(path)
+            };
         }
 
-        self.update_state(self.current_dir.clone());
-        self.toggle();
-        self.mode = Mode::Normal;
+        self.refresh_current_directory(self.current_path.clone());
+        self.toggle_confirmation_popup();
+        self.mode = InteractionMode::Normal;
     }
 
-    fn rename(&mut self, input: &mut String) {
-        if let Some(ind) = self.selected_index.selected() {
-            if let Some(sel) = self.current_items.get(ind) {
-                let filename = &sel.name;
-                if input.ends_with("/") {
-                    input.pop();
+    fn rename_selected(&mut self, input: &mut String) {
+        if let Some(index) = self.selection.selected() {
+            if let Some(entry) = self.entries.get(index) {
+                let old_path = self.current_path.join(&entry.name);
+                let new_path = self.current_path.join(input.trim_end_matches('/'));
+
+                if fs::rename(&old_path, &new_path).is_ok() {
+                    self.refresh_current_directory(self.current_path.clone());
+                    self.input_buffer.clear();
+                    self.popup = None;
                 }
-                if fs::rename(filename, input).is_ok() {
-                    self.update_state(self.current_dir.clone());
-                    self.temp = "".to_string();
-                    self.pop = None;
-                };
             }
-        };
+        }
     }
 
-    fn create(&mut self, input: String) {
-        let is_dir = input.ends_with('/');
-        let input = input.trim_end_matches('/');
-        let mut parts: Vec<&str> = input.split('/').collect();
+    fn create_entry(&mut self, input: String) {
+        let is_directory = input.ends_with('/');
+        let trimmed_input = input.trim_end_matches('/');
+        let mut segments: Vec<&str> = trimmed_input.split('/').collect();
 
-        if let Some(last) = parts.pop() {
-            let mut base_path = self.current_dir.clone();
-            for part in parts {
-                base_path.push(part);
+        if let Some(name) = segments.pop() {
+            let mut path = self.current_path.clone();
+            for segment in segments {
+                path.push(segment);
             }
 
-            if let Err(e) = fs::create_dir_all(&base_path) {
-                eprintln!("Error creating parent directories: {e}");
+            if let Err(e) = fs::create_dir_all(&path) {
+                eprintln!("Error creating directories: {e}");
                 return;
             }
 
-            base_path.push(last);
+            path.push(name);
 
-            if is_dir {
-                self.create_dir(base_path);
+            if is_directory {
+                self.create_directory(path);
             } else {
-                self.create_file(base_path);
+                self.create_file(path);
             }
         }
     }
 
-    fn create_dir(&mut self, path: PathBuf) {
-        if let Err(e) = fs::create_dir_all(&path) {
-            eprintln!("Error creating directory {:?}: {}", path, e);
-        } else {
-            self.on_creation_success();
+    fn create_directory(&mut self, path: PathBuf) {
+        match fs::create_dir_all(&path) {
+            Ok(_) => self.on_create_success(),
+            Err(e) => eprintln!("Error creating directory {:?}: {}", path, e),
         }
     }
 
     fn create_file(&mut self, path: PathBuf) {
-        if let Err(e) = fs::File::create(&path) {
-            eprintln!("Error creating file {:?}: {}", path, e);
-        } else {
-            self.on_creation_success();
+        match fs::File::create(&path) {
+            Ok(_) => self.on_create_success(),
+            Err(e) => eprintln!("Error creating file {:?}: {}", path, e),
         }
     }
 
-    fn on_creation_success(&mut self) {
-        self.update_state(self.current_dir.clone());
-        self.temp = "".into();
-        self.pop = None;
+    fn on_create_success(&mut self) {
+        self.refresh_current_directory(self.current_path.clone());
+        self.input_buffer.clear();
+        self.popup = None;
     }
 
-    fn copy(&mut self) {
-        let selected_field = self.get_selected_items();
-        self.selected_items = selected_field;
+    fn copy_selected(&mut self) {
+        self.clipboard = self.get_selected_paths();
     }
 
-    fn paste(&mut self) {
-        let selected_items = self.selected_items.clone();
-
-        for src in selected_items.iter() {
-            let dst = self.current_dir.join(src.file_name().unwrap());
-
+    fn paste_clipboard(&mut self) {
+        for src in &self.clipboard {
+            let dst = self.current_path.join(src.file_name().unwrap());
             if src.is_file() {
                 let _ = fs::copy(src, &dst);
             } else if src.is_dir() {
-                self.dir_paste(src, &dst);
+                self.recursively_copy_dir(src, &dst);
             }
         }
-
-        self.update_state(self.current_dir.clone());
+        self.refresh_current_directory(self.current_path.clone());
     }
 
-    fn dir_paste(&self, src: &PathBuf, dst: &PathBuf) {
+    fn recursively_copy_dir(&self, src: &PathBuf, dst: &PathBuf) {
         if let Err(e) = fs::create_dir_all(dst) {
-            eprintln!("Failed to create directory {:?}: {}", dst, e);
+            eprintln!("Error creating dir {:?}: {}", dst, e);
             return;
         }
 
         if let Ok(entries) = fs::read_dir(src) {
             for entry in entries.flatten() {
-                let child_src = entry.path();
-                let child_dst = dst.join(entry.file_name());
+                let src_path = entry.path();
+                let dst_path = dst.join(entry.file_name());
 
-                if child_src.is_file() {
-                    if let Err(e) = fs::copy(&child_src, &child_dst) {
-                        eprintln!("Failed to copy file {:?}: {}", child_src, e);
+                if src_path.is_file() {
+                    if let Err(e) = fs::copy(&src_path, &dst_path) {
+                        eprintln!("Failed to copy file {:?}: {}", src_path, e);
                     }
-                } else if child_src.is_dir() {
-                    self.dir_paste(&child_src, &child_dst);
+                } else if src_path.is_dir() {
+                    self.recursively_copy_dir(&src_path, &dst_path);
                 }
             }
         }
     }
 
-    fn get_selected_items(&mut self) -> Vec<PathBuf> {
-        let selected_field: Vec<PathBuf> = self
-            .current_items
+    fn get_selected_paths(&self) -> Vec<PathBuf> {
+        self.entries
             .iter()
-            .filter(|x| x.selected)
-            .filter_map(|x| {
-                let abs_path = self.current_dir.join(&x.name);
-                abs_path.canonicalize().ok()
-            })
-            .collect();
-        selected_field
+            .filter(|entry| entry.is_selected)
+            .filter_map(|entry| self.current_path.join(&entry.name).canonicalize().ok())
+            .collect()
     }
 
-    fn get_sub_files(&mut self) {
-        if let Some(loc) = self.selected_index.selected() {
-            if let Some(selected_item) = self.current_items.get(loc) {
-                let item_path = self.current_dir.join(&selected_item.name);
-
-                match selected_item.item_type {
-                    ItemType::Dir => match utils::list_dir(&item_path) {
-                        Ok(sub_files) => self.get_file_update_state(sub_files),
-                        Err(e) => eprintln!("Error listing directory {:?}: {}", item_path, e),
+    fn refresh_preview(&mut self) {
+        if let Some(index) = self.selection.selected() {
+            if let Some(entry) = self.entries.get(index) {
+                let path = self.current_path.join(&entry.name);
+                match entry.entry_type {
+                    FsEntryType::Directory => match utils::list_dir(&path) {
+                        Ok(items) => self.refresh_preview_with_directory(items),
+                        Err(e) => eprintln!("Failed to list dir {:?}: {}", path, e),
                     },
-                    ItemType::File => match fs::read_to_string(&item_path) {
-                        Ok(content) => self.update_file_state_file(content),
-                        Err(_) => match fs::read(&item_path) {
-                            Ok(content) => self.update_file_state_binary(content),
-                            Err(e) => eprintln!("Error reading file {:?}: {}", item_path, e),
+                    FsEntryType::File => match fs::read_to_string(&path) {
+                        Ok(text) => self.refresh_preview_with_text_file(text),
+                        Err(_) => match fs::read(&path) {
+                            Ok(bytes) => self.refresh_preview_with_binary_file(bytes),
+                            Err(e) => eprintln!("Error reading file {:?}: {}", path, e),
                         },
                     },
                 }
@@ -290,100 +273,96 @@ impl FileManagerState {
         }
     }
 
-    fn select(&mut self) {
-        if let Mode::Selection = self.mode {
-            if let Some(loc) = self.selected_index.selected() {
-                if let Some(selected_item) = self.current_items.get_mut(loc) {
-                    selected_item.selected = true;
+    fn select_current(&mut self) {
+        if let InteractionMode::MultiSelect = self.mode {
+            if let Some(index) = self.selection.selected() {
+                if let Some(entry) = self.entries.get_mut(index) {
+                    entry.is_selected = true;
                 }
             }
         }
     }
 
-    fn unselect(&mut self) {
-        if let Mode::Normal = self.mode {
-            for i in 0..self.current_items.len() {
-                if let Some(selected_item) = self.current_items.get_mut(i) {
-                    selected_item.selected = false;
-                    self.update_state(self.current_dir.clone());
-                }
+    fn deselect_all(&mut self) {
+        if let InteractionMode::Normal = self.mode {
+            for entry in &mut self.entries {
+                entry.is_selected = false;
             }
+            self.refresh_current_directory(self.current_path.clone());
         }
     }
 
-    fn down(&mut self) {
-        self.select();
-        self.selected_index.select_next();
-        if self.current_items.len() == self.selected_index.selected().unwrap() {
-            self.selected_index.select(Some(0));
+    fn navigate_down(&mut self) {
+        self.select_current();
+        self.selection.select_next();
+        if self.selection.selected().unwrap_or(0) >= self.entries.len() {
+            self.selection.select(Some(0));
         }
-        self.get_sub_files();
+        self.refresh_preview();
     }
 
-    fn up(&mut self) {
-        self.select();
-        let lastl = self.current_items.len();
-        if self.selected_index.selected().unwrap() == 0 {
-            self.selected_index.select(Some(lastl));
+    fn navigate_up(&mut self) {
+        self.select_current();
+        let len = self.entries.len();
+        if self.selection.selected().unwrap_or(0) == 0 {
+            self.selection.select(Some(len));
         }
-        self.selected_index.select_previous();
-        self.get_sub_files();
+        self.selection.select_previous();
+        self.refresh_preview();
     }
 
-    fn get_parent_index(&mut self) {
-        if let Some(name) = self
-            .current_dir
-            .file_name()
-            .map(|name| name.to_string_lossy())
-        {
+    fn update_parent_selection(&mut self) {
+        if let Some(current_name) = self.current_path.file_name().map(|n| n.to_string_lossy()) {
             if let Some(index) = self
-                .parent
-                .parent_items
+                .parent_view
+                .entries
                 .iter()
-                .position(|item| item.name == name)
+                .position(|entry| entry.name == current_name)
             {
-                self.parent.selected = ListState::default().with_selected(Some(index));
-            };
+                self.parent_view.selection = ListState::default().with_selected(Some(index));
+            }
         }
     }
 
-    fn previous_dir(&mut self) {
-        if let Some(ref parent) = self.parent.parent_dir {
-            self.update_state(parent.to_path_buf());
-            self.selected_index = self.parent.selected.clone();
-            self.get_sub_files();
+    fn navigate_to_parent(&mut self) {
+        if let Some(ref parent_path) = self.parent_view.path {
+            self.refresh_current_directory(parent_path.clone());
+            self.selection = self.parent_view.selection.clone();
+            self.refresh_preview();
         }
     }
 
-    fn next_dir(&mut self) {
-        if let Some(loc) = self.selected_index.selected() {
-            if let Some(selected_file) = self.current_items.get(loc) {
-                if let ItemType::Dir = selected_file.item_type {
-                    let mut new_dir = self.current_dir.clone();
-                    new_dir.push(&selected_file.name);
-                    self.update_state(new_dir);
-                    self.parent.selected = self.selected_index.clone();
-                    self.selected_index = ListState::default().with_selected(Some(0));
-                    self.get_sub_files();
+    fn navigate_to_child(&mut self) {
+        if let Some(index) = self.selection.selected() {
+            if let Some(entry) = self.entries.get(index) {
+                if let FsEntryType::Directory = entry.entry_type {
+                    let mut path = self.current_path.clone();
+                    path.push(&entry.name);
+                    self.refresh_current_directory(path);
+                    self.parent_view.selection = self.selection.clone();
+                    self.selection = ListState::default().with_selected(Some(0));
+                    self.refresh_preview();
                 }
             }
         }
     }
 
-    fn toggle(&mut self) {
-        if let Some(PopUI::Confirmation) = self.pop.clone() {
-            self.pop = None
-        } else {
-            self.pop = Some(PopUI::Confirmation)
-        }
+    fn toggle_confirmation_popup(&mut self) {
+        self.popup = match self.popup {
+            Some(PopupType::Confirm) => None,
+            _ => Some(PopupType::Confirm),
+        };
     }
 }
 
 fn main() -> std::io::Result<()> {
     let terminal = ratatui::init();
+
     let start_dir = PathBuf::from(".");
-    let absolute_path = start_dir.canonicalize().unwrap();
-    let appstate = FileManagerState::new(&absolute_path).run(terminal);
+    let absolute_path = start_dir.canonicalize().expect("Failed to resolve path");
+
+    let exit_result = FileManager::new(&absolute_path).run(terminal);
+
     ratatui::restore();
-    appstate
+    exit_result
 }
