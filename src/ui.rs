@@ -13,8 +13,8 @@ impl FileManager {
     pub fn render(&mut self, f: &mut Frame) {
         let selection_state = &mut self.selection;
         let parent_files = &self.parent_view.entries;
-        let current_files = &self.entries;
-        let list_current_items: Vec<ListItem> = convert_to_listitems(current_files).unwrap();
+        let current_entries = &self.entries;
+        let list_current_items: Vec<ListItem> = convert_to_listitems(current_entries).unwrap();
 
         let list_parent_items: Vec<ListItem> = convert_to_listitems(parent_files).unwrap();
         let current_directory = self.current_path.to_string_lossy();
@@ -26,7 +26,7 @@ impl FileManager {
         ])
         .split(f.area());
 
-        let list = List::new(list_current_items)
+        let entry_lists = List::new(list_current_items)
             .highlight_style(Style::default().bg(Color::Blue).fg(Color::Black))
             .add_modifier(Modifier::BOLD)
             .highlight_symbol(">>")
@@ -70,7 +70,15 @@ impl FileManager {
 
         f.render_widget(current_directory.to_string(), main_layout[0]);
         f.render_widget(list_parent_files, layout[0]);
-        f.render_stateful_widget(list, layout[1], selection_state);
+
+        if entry_lists.is_empty() {
+            let par = Paragraph::new("No files")
+                .alignment(Alignment::Center)
+                .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));
+            f.render_widget(par, layout[1]);
+        } else {
+            f.render_stateful_widget(entry_lists, layout[1], selection_state);
+        }
 
         if let Some(PopupType::Confirm) = self.popup.clone() {
             let mut confirm_file_list = Paragraph::new("").wrap(Wrap { trim: false }); // placeholder
