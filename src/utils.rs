@@ -27,12 +27,12 @@ pub fn list_dir(p: &PathBuf) -> std::io::Result<Vec<FsEntry>> {
     Ok(items)
 }
 pub fn get_state_data(start: &PathBuf) -> (Vec<FsEntry>, Option<PathBuf>, Vec<FsEntry>) {
-    let files = list_dir(start).unwrap();
-    let parent_dir = start.parent().map(|p| p.to_path_buf());
-    let parent_items = parent_dir
+    let entries = list_dir(start).unwrap();
+    let parent_path = start.parent().map(|p| p.to_path_buf());
+    let parent_entries = parent_path
         .as_ref()
         .map_or_else(Vec::new, |p| list_dir(p).unwrap());
-    (files, parent_dir, parent_items)
+    (entries, parent_path, parent_entries)
 }
 
 pub fn convert_to_listitems(f: &[FsEntry]) -> io::Result<Vec<ListItem>> {
