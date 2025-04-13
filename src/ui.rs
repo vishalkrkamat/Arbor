@@ -18,6 +18,7 @@ impl FileManager {
 
         let list_parent_items: Vec<ListItem> = convert_to_listitems(parent_files).unwrap();
         let current_directory = self.current_path.to_string_lossy();
+        let block = Block::bordered().border_type(Rounded).borders(Borders::ALL);
 
         let main_layout = Layout::vertical([
             Constraint::Length(1),
@@ -31,8 +32,7 @@ impl FileManager {
             .add_modifier(Modifier::BOLD)
             .highlight_symbol(">>")
             .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));
-        let list_parent_files = List::new(list_parent_items)
-            .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));
+        let list_parent_files = List::new(list_parent_items).block(block.clone());
 
         let layout = Layout::default()
             .direction(Direction::Horizontal)
@@ -46,25 +46,32 @@ impl FileManager {
         match &self.preview {
             PreviewContent::Directory(sub_files) => {
                 let list_sub_items: Vec<ListItem> = convert_to_listitems(sub_files).unwrap();
-
-                let preview_directory_list = List::new(list_sub_items)
-                    .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));
                 f.render_widget(Clear, layout[2]);
-                f.render_widget(preview_directory_list, layout[2]);
+                f.render_widget(&block, layout[2]);
+
+                let preview_directory_list = List::new(list_sub_items);
+                let inner_area = block.inner(layout[2]);
+                f.render_widget(preview_directory_list, inner_area);
             }
             PreviewContent::File(FileContent::Text(data)) => {
+                f.render_widget(Clear, layout[2]);
+                f.render_widget(block.clone(), layout[2]);
+
                 let preview_file_content_txt = Paragraph::new(String::from(data))
                     .wrap(Wrap { trim: true })
-                    .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));
-                f.render_widget(Clear, layout[2]);
-                f.render_widget(preview_file_content_txt, layout[2]);
+                    .block(Block::default());
+
+                let inner_area = block.inner(layout[2]);
+                f.render_widget(preview_file_content_txt, inner_area);
             }
             PreviewContent::File(FileContent::Binary(data)) => {
+                f.render_widget(Clear, layout[2]);
+                f.render_widget(&block, layout[2]);
                 let preview_file_content_binary = Paragraph::new(hex::encode(data))
                     .wrap(Wrap { trim: true })
-                    .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));
-                f.render_widget(Clear, layout[2]);
-                f.render_widget(preview_file_content_binary, layout[2]);
+                    .block(Block::default());
+                let inner_area = block.inner(layout[2]);
+                f.render_widget(preview_file_content_binary, inner_area);
             }
         }
 
