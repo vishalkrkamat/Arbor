@@ -65,6 +65,9 @@ impl FileManager {
                         KeyCode::Char('k') => self.navigate_up(),
                         KeyCode::Char('h') => self.navigate_to_parent(),
                         KeyCode::Char('l') => self.navigate_to_child(),
+                        KeyCode::Char('n') => {
+                            self.show_notification("hell".to_string());
+                        }
                         KeyCode::Char('d') => self.toggle_confirmation_popup(),
                         KeyCode::Char('r') => self.popup = Some(PopupType::Rename),
                         KeyCode::Char('a') => self.popup = Some(PopupType::Create),

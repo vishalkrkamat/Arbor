@@ -1,4 +1,4 @@
-use crate::utils::{convert_to_listitems, popup_area};
+use crate::utils::{bottom_right_area, convert_to_listitems, popup_area};
 use crate::InteractionMode;
 use crate::PopupType;
 use crate::PreviewContent;
@@ -9,6 +9,8 @@ use ratatui::{
     widgets::{Block, BorderType::Rounded, Borders, Clear, List, ListItem, Paragraph, Wrap},
     Frame,
 };
+use std::{thread, time::Duration};
+
 impl FileManager {
     pub fn render(&mut self, f: &mut Frame) {
         let selection_state = &mut self.selection;
@@ -196,6 +198,26 @@ impl FileManager {
 
             f.render_widget(Clear, area);
             f.render_widget(input_paragraph, area);
+        }
+
+        // Render notification if available
+        if let Some(noti) = &self.notify {
+            let area = bottom_right_area(main_layout[1], 35, 5);
+
+            let block = Block::bordered()
+                .border_type(Rounded)
+                .title("Notification")
+                .style(Style::default().fg(Color::Yellow));
+
+            let text = Paragraph::new(noti.message.clone())
+                .style(Style::default().fg(Color::Yellow))
+                .bg(Color::Black)
+                .alignment(Alignment::Center)
+                .wrap(Wrap { trim: true })
+                .block(block);
+
+            f.render_widget(Clear, area);
+            f.render_widget(text, area);
         }
     }
 }

@@ -1,4 +1,5 @@
 mod event_handler;
+use std::time::{Duration, Instant};
 mod ui;
 mod utils;
 
@@ -45,6 +46,13 @@ pub enum InteractionMode {
     MultiSelect,
 }
 
+#[derive(Debug, Clone)]
+pub struct Notification {
+    message: String,
+    created_at: Instant,
+    duration: Duration,
+}
+
 #[derive(Debug)]
 pub struct FileManager {
     parent_view: ParentView,
@@ -53,6 +61,7 @@ pub struct FileManager {
     preview: PreviewContent,
     selection: ListState,
     mode: InteractionMode,
+    notify: Option<Notification>,
     clipboard: Vec<PathBuf>,
     input_buffer: String,
     popup: Option<PopupType>,
@@ -80,6 +89,7 @@ impl FileManager {
             preview: PreviewContent::Directory(vec![]),
             selection: ListState::default().with_selected(Some(0)),
             mode: InteractionMode::Normal,
+            notify: None,
             clipboard: vec![],
             input_buffer: String::new(),
             popup: None,
@@ -101,11 +111,13 @@ impl FileManager {
     fn refresh_preview_with_directory(&mut self, items: Vec<FsEntry>) {
         self.preview = PreviewContent::Directory(items);
         self.update_parent_selection();
+        self.clear_expired_notifications();
     }
 
     fn refresh_preview_with_text_file(&mut self, content: String) {
         self.preview = PreviewContent::File(FileContent::Text(content));
         self.update_parent_selection();
+        self.clear_expired_notifications();
     }
 
     fn refresh_preview_with_binary_file(&mut self, content: Vec<u8>) {
@@ -179,6 +191,7 @@ impl FileManager {
             path.push(name);
 
             if is_directory {
+                self.show_notification("hell".to_string());
                 self.create_directory(path);
             } else {
                 self.create_file(path);
@@ -189,14 +202,14 @@ impl FileManager {
     fn create_directory(&mut self, path: PathBuf) {
         match fs::create_dir_all(&path) {
             Ok(_) => self.on_create_success(),
-            Err(e) => eprintln!("Error creating directory {:?}: {}", path, e),
+            Err(e) => self.show_notification(e.to_string()),
         }
     }
 
     fn create_file(&mut self, path: PathBuf) {
         match fs::File::create(&path) {
             Ok(_) => self.on_create_success(),
-            Err(e) => eprintln!("Error creating file {:?}: {}", path, e),
+            Err(e) => self.show_notification(e.to_string()),
         }
     }
 
@@ -352,6 +365,22 @@ impl FileManager {
             Some(PopupType::Confirm) => None,
             _ => Some(PopupType::Confirm),
         };
+    }
+
+    fn show_notification(&mut self, message: String) {
+        self.notify = Some(Notification {
+            message,
+            created_at: Instant::now(),
+            duration: Duration::from_secs(3),
+        });
+    }
+
+    fn clear_expired_notifications(&mut self) {
+        if let Some(noti) = &self.notify {
+            if noti.created_at.elapsed() >= noti.duration {
+                self.notify = None;
+            }
+        }
     }
 }
 
