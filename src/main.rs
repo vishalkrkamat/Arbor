@@ -111,13 +111,11 @@ impl FileManager {
     fn refresh_preview_with_directory(&mut self, items: Vec<FsEntry>) {
         self.preview = PreviewContent::Directory(items);
         self.update_parent_selection();
-        self.clear_expired_notifications();
     }
 
     fn refresh_preview_with_text_file(&mut self, content: String) {
         self.preview = PreviewContent::File(FileContent::Text(content));
         self.update_parent_selection();
-        self.clear_expired_notifications();
     }
 
     fn refresh_preview_with_binary_file(&mut self, content: Vec<u8>) {
@@ -272,13 +270,13 @@ impl FileManager {
                 match entry.entry_type {
                     FsEntryType::Directory => match utils::list_dir(&path) {
                         Ok(items) => self.refresh_preview_with_directory(items),
-                        Err(e) => eprintln!("Failed to list dir {:?}: {}", path, e),
+                        Err(e) => self.show_notification(format!("{}", e)),
                     },
                     FsEntryType::File => match fs::read_to_string(&path) {
                         Ok(text) => self.refresh_preview_with_text_file(text),
                         Err(_) => match fs::read(&path) {
                             Ok(bytes) => self.refresh_preview_with_binary_file(bytes),
-                            Err(e) => eprintln!("Error reading file {:?}: {}", path, e),
+                            Err(e) => self.show_notification(format!("{}", e)),
                         },
                     },
                 }
@@ -384,7 +382,8 @@ impl FileManager {
     }
 }
 
-fn main() -> std::io::Result<()> {
+#[tokio::main]
+async fn main() -> std::io::Result<()> {
     let terminal = ratatui::init();
 
     let start_dir = PathBuf::from(".");

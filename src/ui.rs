@@ -9,7 +9,6 @@ use ratatui::{
     widgets::{Block, BorderType::Rounded, Borders, Clear, List, ListItem, Paragraph, Wrap},
     Frame,
 };
-use std::{thread, time::Duration};
 
 impl FileManager {
     pub fn render(&mut self, f: &mut Frame) {
