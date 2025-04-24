@@ -182,7 +182,7 @@ impl FileManager {
             }
 
             if let Err(e) = fs::create_dir_all(&path) {
-                eprintln!("Error creating directories: {e}");
+                self.show_notification(format!("Error creating directories: {e}"));
                 return;
             }
 
@@ -222,20 +222,21 @@ impl FileManager {
     }
 
     fn paste_clipboard(&mut self) {
-        for src in &self.clipboard {
+        let clipboard = self.clipboard.clone();
+        for src in clipboard {
             let dst = self.current_path.join(src.file_name().unwrap());
             if src.is_file() {
                 let _ = fs::copy(src, &dst);
             } else if src.is_dir() {
-                self.recursively_copy_dir(src, &dst);
+                self.recursively_copy_dir(&src, &dst);
             }
         }
         self.refresh_current_directory(self.current_path.clone());
     }
 
-    fn recursively_copy_dir(&self, src: &PathBuf, dst: &PathBuf) {
+    fn recursively_copy_dir(&mut self, src: &PathBuf, dst: &PathBuf) {
         if let Err(e) = fs::create_dir_all(dst) {
-            eprintln!("Error creating dir {:?}: {}", dst, e);
+            self.show_notification(format!("Error creating dir {:?}: {}", dst, e));
             return;
         }
 
