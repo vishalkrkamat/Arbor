@@ -56,7 +56,7 @@ impl FileManager {
             }
             PreviewContent::File(FileContent::Text(data)) => {
                 f.render_widget(Clear, layout[2]);
-                f.render_widget(block.clone(), layout[2]);
+                f.render_widget(&block, layout[2]);
 
                 let preview_file_content_txt = Paragraph::new(String::from(data))
                     .wrap(Wrap { trim: true })
@@ -80,10 +80,10 @@ impl FileManager {
         f.render_widget(list_parent_files, layout[0]);
 
         if entry_lists.is_empty() {
-            let par = Paragraph::new("No files")
+            let empty_lists = Paragraph::new("No files")
                 .alignment(Alignment::Center)
                 .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));
-            f.render_widget(par, layout[1]);
+            f.render_widget(empty_lists, layout[1]);
         } else {
             f.render_stateful_widget(entry_lists, layout[1], selection_state);
         }

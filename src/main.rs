@@ -383,8 +383,7 @@ impl FileManager {
     }
 }
 
-#[tokio::main]
-async fn main() -> std::io::Result<()> {
+fn main() -> std::io::Result<()> {
     let terminal = ratatui::init();
 
     let start_dir = PathBuf::from(".");
