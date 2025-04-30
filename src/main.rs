@@ -6,6 +6,8 @@ mod utils;
 use ratatui::widgets::ListState;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::mpsc;
+use std::thread;
 use utils::get_state_data;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -24,7 +26,7 @@ pub struct FsEntry {
 #[derive(Debug, Clone)]
 pub enum FileContent {
     Text(String),
-    Binary(Vec<u8>),
+    Binary(String),
 }
 
 #[derive(Debug, Clone)]
@@ -118,7 +120,7 @@ impl FileManager {
         self.update_parent_selection();
     }
 
-    fn refresh_preview_with_binary_file(&mut self, content: Vec<u8>) {
+    fn refresh_preview_with_binary_file(&mut self, content: String) {
         self.preview = PreviewContent::File(FileContent::Binary(content));
     }
 
@@ -269,16 +271,26 @@ impl FileManager {
             if let Some(entry) = self.entries.get(index) {
                 let path = self.current_path.join(&entry.name);
                 match entry.entry_type {
-                    FsEntryType::Directory => match utils::list_dir(&path) {
-                        Ok(items) => self.refresh_preview_with_directory(items),
-                        Err(e) => self.show_notification(format!("{}", e)),
-                    },
-                    FsEntryType::File => match fs::read_to_string(&path) {
+                    FsEntryType::Directory => {
+                        let path_clone = path.clone();
+                        let (tx, rx) = mpsc::channel();
+
+                        thread::spawn(move || {
+                            let result = utils::list_dir(&path_clone);
+                            let _ = tx.send(result);
+                        });
+
+                        if let Ok(result) = rx.recv() {
+                            match result {
+                                Ok(items) => self.refresh_preview_with_directory(items),
+                                Err(e) => self.show_notification(e.to_string()),
+                            }
+                        }
+                    }
+
+                    FsEntryType::File => match utils::read_valid_file(&path) {
                         Ok(text) => self.refresh_preview_with_text_file(text),
-                        Err(_) => match fs::read(&path) {
-                            Ok(bytes) => self.refresh_preview_with_binary_file(bytes),
-                            Err(e) => self.show_notification(format!("{}", e)),
-                        },
+                        Err(e) => self.refresh_preview_with_binary_file(e.to_string()),
                     },
                 }
             }

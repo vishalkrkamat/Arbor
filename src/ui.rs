@@ -63,12 +63,14 @@ impl FileManager {
                     .block(Block::default());
 
                 let inner_area = block.inner(layout[2]);
+
+                f.render_widget(Clear, inner_area);
                 f.render_widget(preview_file_content_txt, inner_area);
             }
             PreviewContent::File(FileContent::Binary(data)) => {
                 f.render_widget(Clear, layout[2]);
                 f.render_widget(&block, layout[2]);
-                let preview_file_content_binary = Paragraph::new(hex::encode(data))
+                let preview_file_content_binary = Paragraph::new(data.to_string())
                     .wrap(Wrap { trim: true })
                     .block(Block::default());
                 let inner_area = block.inner(layout[2]);

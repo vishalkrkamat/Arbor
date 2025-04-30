@@ -4,6 +4,7 @@ use ratatui::layout::{Constraint, Flex, Layout, Rect};
 use ratatui::style::{Color, Style};
 use ratatui::text::Span;
 use ratatui::widgets::ListItem;
+use std::fmt::Result;
 use std::path::PathBuf;
 use std::{fs, io};
 
@@ -26,6 +27,11 @@ pub fn list_dir(p: &PathBuf) -> std::io::Result<Vec<FsEntry>> {
     }
     Ok(items)
 }
+
+pub fn read_valid_file(path: &PathBuf) -> io::Result<String> {
+    fs::read_to_string(path)
+}
+
 pub fn get_state_data(start: &PathBuf) -> (Vec<FsEntry>, Option<PathBuf>, Vec<FsEntry>) {
     let entries = list_dir(start).unwrap();
     let parent_path = start.parent().map(|p| p.to_path_buf());
