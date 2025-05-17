@@ -4,7 +4,6 @@ use ratatui::layout::{Constraint, Flex, Layout, Rect};
 use ratatui::style::{Color, Style};
 use ratatui::text::Span;
 use ratatui::widgets::ListItem;
-use std::fmt::Result;
 use std::path::PathBuf;
 use std::{fs, io};
 
