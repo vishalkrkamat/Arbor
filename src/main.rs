@@ -191,7 +191,6 @@ impl FileManager {
             path.push(name);
 
             if is_directory {
-                self.show_notification("hell".to_string());
                 self.create_directory(path);
             } else {
                 self.create_file(path);
