@@ -20,6 +20,9 @@ impl FileManager {
         let list_parent_items: Vec<ListItem> = convert_to_listitems(parent_files).unwrap();
         let current_directory = self.current_path.to_string_lossy();
         let block = Block::bordered().border_type(Rounded).borders(Borders::ALL);
+        let empty_lists = Paragraph::new("No Files")
+            .alignment(Alignment::Center)
+            .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));
 
         let main_layout = Layout::vertical([
             Constraint::Length(1),
@@ -52,7 +55,11 @@ impl FileManager {
 
                 let preview_directory_list = List::new(list_sub_items);
                 let inner_area = block.inner(layout[2]);
-                f.render_widget(preview_directory_list, inner_area);
+                if preview_directory_list.is_empty() {
+                    f.render_widget(&empty_lists, layout[2]);
+                } else {
+                    f.render_widget(preview_directory_list, inner_area);
+                }
             }
             PreviewContent::File(FileContent::Text(data)) => {
                 f.render_widget(Clear, layout[2]);
@@ -82,10 +89,7 @@ impl FileManager {
         f.render_widget(list_parent_files, layout[0]);
 
         if entry_lists.is_empty() {
-            let empty_lists = Paragraph::new("No files")
-                .alignment(Alignment::Center)
-                .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));
-            f.render_widget(empty_lists, layout[1]);
+            f.render_widget(&empty_lists, layout[1]);
         } else {
             f.render_stateful_widget(entry_lists, layout[1], selection_state);
         }

@@ -77,8 +77,8 @@ pub struct ParentView {
 }
 
 impl FileManager {
-    fn new(start_path: &PathBuf) -> Self {
-        let (entries, parent_path, parent_entries) = get_state_data(start_path);
+    fn new(start_path: &PathBuf) -> Result<Self, std::io::Error> {
+        let (entries, parent_path, parent_entries) = get_state_data(start_path).unwrap();
 
         let mut state = Self {
             parent_view: ParentView {
@@ -99,11 +99,11 @@ impl FileManager {
 
         state.refresh_preview();
         state.update_parent_selection();
-        state
+        Ok(state)
     }
 
     fn refresh_current_directory(&mut self, new_path: PathBuf) {
-        let (entries, parent_path, parent_entries) = get_state_data(&new_path);
+        let (entries, parent_path, parent_entries) = get_state_data(&new_path).unwrap();
         self.current_path = new_path;
         self.entries = entries;
         self.parent_view.path = parent_path;
@@ -401,7 +401,7 @@ fn main() -> std::io::Result<()> {
     let start_dir = PathBuf::from(".");
     let absolute_path = start_dir.canonicalize().expect("Failed to resolve path");
 
-    let exit_result = FileManager::new(&absolute_path).run(terminal);
+    let exit_result = FileManager::new(&absolute_path).unwrap().run(terminal);
 
     ratatui::restore();
     exit_result

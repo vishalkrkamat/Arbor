@@ -31,13 +31,15 @@ pub fn read_valid_file(path: &PathBuf) -> io::Result<String> {
     fs::read_to_string(path)
 }
 
-pub fn get_state_data(start: &PathBuf) -> (Vec<FsEntry>, Option<PathBuf>, Vec<FsEntry>) {
-    let entries = list_dir(start).unwrap();
+pub fn get_state_data(
+    start: &PathBuf,
+) -> std::io::Result<(Vec<FsEntry>, Option<PathBuf>, Vec<FsEntry>)> {
+    let entries = list_dir(start)?;
     let parent_path = start.parent().map(|p| p.to_path_buf());
     let parent_entries = parent_path
         .as_ref()
         .map_or_else(Vec::new, |p| list_dir(p).unwrap());
-    (entries, parent_path, parent_entries)
+    Ok((entries, parent_path, parent_entries))
 }
 
 pub fn convert_to_listitems(f: &[FsEntry]) -> io::Result<Vec<ListItem>> {
@@ -60,7 +62,7 @@ pub fn convert_to_listitems(f: &[FsEntry]) -> io::Result<Vec<ListItem>> {
     Ok(list_items)
 }
 
-//POPUp UI constructor
+//PopUp UI constructor
 pub fn popup_area(area: Rect, percent_x: u16, percent_y: u16) -> Rect {
     let vertical = Layout::vertical([Constraint::Percentage(percent_y)]).flex(Flex::Center);
     let horizontal = Layout::horizontal([Constraint::Percentage(percent_x)]).flex(Flex::Center);
