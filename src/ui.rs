@@ -94,7 +94,7 @@ impl FileManager {
             f.render_stateful_widget(entry_lists, layout[1], selection_state);
         }
 
-        if let Some(PopupType::Confirm) = self.popup.clone() {
+        if let PopupType::Confirm = &self.popup {
             let mut confirm_file_list = Paragraph::new("").wrap(Wrap { trim: false }); // placeholder
 
             match self.mode {
@@ -175,8 +175,8 @@ impl FileManager {
             f.render_widget(options1, section2[1]);
         }
 
-        if let Some(PopupType::Rename) = self.popup.clone() {
-            let input = self.input_buffer.clone();
+        if let PopupType::Rename = &self.popup {
+            let input = &self.input_buffer;
             let input_paragraph = Paragraph::new(input.clone()).block(
                 Block::bordered()
                     .border_type(Rounded)
@@ -190,8 +190,8 @@ impl FileManager {
             f.render_widget(input_paragraph, area);
         }
 
-        if let Some(PopupType::Create) = self.popup.clone() {
-            let input = self.input_buffer.clone();
+        if let PopupType::Create = &self.popup {
+            let input = &self.input_buffer;
             let input_paragraph = Paragraph::new(input.clone()).block(
                 Block::bordered()
                     .border_type(Rounded)
@@ -214,7 +214,7 @@ impl FileManager {
                 .title("Notification")
                 .style(Style::default().fg(Color::Yellow));
 
-            let text = Paragraph::new(noti.message.clone())
+            let text = Paragraph::new(&*noti.message)
                 .style(Style::default().fg(Color::Yellow))
                 .bg(Color::Black)
                 .alignment(Alignment::Center)

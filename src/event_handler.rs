@@ -12,7 +12,7 @@ impl FileManager {
             terminal.draw(|f| self.render(f))?;
             if event::poll(poll_interval)? {
                 if let Event::Key(key) = event::read()? {
-                    if let Some(PopupType::Confirm) = self.popup.clone() {
+                    if let PopupType::Confirm = self.popup.clone() {
                         match key.code {
                             KeyCode::Char('n') => self.toggle_confirmation_popup(),
                             KeyCode::Char('y') => match self.mode {
@@ -24,7 +24,7 @@ impl FileManager {
                         continue;
                     }
 
-                    if let Some(PopupType::Rename) = self.popup.clone() {
+                    if let PopupType::Rename = self.popup.clone() {
                         match key.code {
                             KeyCode::Char(input) => {
                                 self.input_buffer.push(input);
@@ -36,13 +36,13 @@ impl FileManager {
                             KeyCode::Enter => {
                                 self.rename_selected(&mut self.input_buffer.clone());
                             }
-                            KeyCode::Esc => self.popup = None,
+                            KeyCode::Esc => self.popup = PopupType::None,
                             _ => {}
                         }
                         continue;
                     }
 
-                    if let Some(PopupType::Create) = self.popup.clone() {
+                    if let PopupType::Create = self.popup.clone() {
                         match key.code {
                             KeyCode::Char(c) => {
                                 self.input_buffer.push(c);
@@ -54,7 +54,7 @@ impl FileManager {
                             KeyCode::Enter => {
                                 self.create_entry(self.input_buffer.clone());
                             }
-                            KeyCode::Esc => self.popup = None,
+                            KeyCode::Esc => self.popup = PopupType::None,
                             _ => {}
                         }
                         continue;
@@ -67,8 +67,8 @@ impl FileManager {
                             KeyCode::Char('h') => self.navigate_to_parent(),
                             KeyCode::Char('l') => self.navigate_to_child(),
                             KeyCode::Char('d') => self.toggle_confirmation_popup(),
-                            KeyCode::Char('r') => self.popup = Some(PopupType::Rename),
-                            KeyCode::Char('a') => self.popup = Some(PopupType::Create),
+                            KeyCode::Char('r') => self.popup = PopupType::Rename,
+                            KeyCode::Char('a') => self.popup = PopupType::Create,
                             KeyCode::Char('y') => self.copy_selected(),
                             KeyCode::Char('p') => self.paste_clipboard(),
                             KeyCode::Esc => self.deselect_all(),

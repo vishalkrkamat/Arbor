@@ -40,6 +40,7 @@ pub enum PopupType {
     Confirm,
     Rename,
     Create,
+    None,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -66,7 +67,7 @@ pub struct FileManager {
     notify: Option<Notification>,
     clipboard: Vec<PathBuf>,
     input_buffer: String,
-    popup: Option<PopupType>,
+    popup: PopupType,
 }
 
 #[derive(Debug)]
@@ -94,7 +95,7 @@ impl FileManager {
             notify: None,
             clipboard: vec![],
             input_buffer: String::new(),
-            popup: None,
+            popup: PopupType::None,
         };
 
         state.refresh_preview();
@@ -134,7 +135,7 @@ impl FileManager {
                 };
 
                 if result.is_ok() {
-                    self.popup = None;
+                    self.popup = PopupType::None;
                     self.refresh_current_directory(self.current_path.clone());
                 } else if let Err(err) = result {
                     eprintln!("Failed to delete {:?}: {}", path, err);
@@ -166,7 +167,7 @@ impl FileManager {
                 if fs::rename(&old_path, &new_path).is_ok() {
                     self.refresh_current_directory(self.current_path.clone());
                     self.input_buffer.clear();
-                    self.popup = None;
+                    self.popup = PopupType::None;
                 }
             }
         }
@@ -215,7 +216,7 @@ impl FileManager {
     fn on_create_success(&mut self) {
         self.refresh_current_directory(self.current_path.clone());
         self.input_buffer.clear();
-        self.popup = None;
+        self.popup = PopupType::None;
     }
 
     fn copy_selected(&mut self) {
@@ -372,8 +373,8 @@ impl FileManager {
 
     fn toggle_confirmation_popup(&mut self) {
         self.popup = match self.popup {
-            Some(PopupType::Confirm) => None,
-            _ => Some(PopupType::Confirm),
+            PopupType::Confirm => PopupType::None,
+            _ => PopupType::Confirm,
         };
     }
 
