@@ -15,9 +15,9 @@ impl FileManager {
         let selection_state = &mut self.selection;
         let parent_files = &self.parent_view.entries;
         let current_entries = &self.entries;
-        let list_current_items: Vec<ListItem> = convert_to_listitems(current_entries).unwrap();
+        let list_current_items: Vec<ListItem> = convert_to_listitems(current_entries);
 
-        let list_parent_items: Vec<ListItem> = convert_to_listitems(parent_files).unwrap();
+        let list_parent_items: Vec<ListItem> = convert_to_listitems(parent_files);
         let current_directory = Paragraph::new(self.current_path.to_string_lossy());
         let block = Block::bordered().border_type(Rounded).borders(Borders::ALL);
         let empty_lists = Paragraph::new("No Files")
@@ -49,7 +49,7 @@ impl FileManager {
 
         match &self.preview {
             PreviewContent::Directory(sub_files) => {
-                let list_sub_items: Vec<ListItem> = convert_to_listitems(sub_files).unwrap();
+                let list_sub_items: Vec<ListItem> = convert_to_listitems(sub_files);
 
                 let preview_directory_list = List::new(list_sub_items);
                 let inner_area = block.inner(layout[2]);

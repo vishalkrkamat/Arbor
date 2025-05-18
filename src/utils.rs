@@ -42,7 +42,7 @@ pub fn get_state_data(
     Ok((entries, parent_path, parent_entries))
 }
 
-pub fn convert_to_listitems(f: &[FsEntry]) -> io::Result<Vec<ListItem>> {
+pub fn convert_to_listitems(f: &[FsEntry]) -> Vec<ListItem> {
     let list_items: Vec<ListItem> = f
         .iter()
         .map(|item| {
@@ -59,7 +59,7 @@ pub fn convert_to_listitems(f: &[FsEntry]) -> io::Result<Vec<ListItem>> {
             ListItem::new(Span::styled(display, style))
         })
         .collect();
-    Ok(list_items)
+    list_items
 }
 
 //PopUp UI constructor
