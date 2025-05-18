@@ -33,7 +33,7 @@ pub fn read_valid_file(path: &PathBuf) -> io::Result<String> {
 
 pub fn get_state_data(
     start: &PathBuf,
-) -> Result<(Vec<FsEntry>, Option<PathBuf>, Vec<FsEntry>), std::io::Error> {
+) -> std::io::Result<(Vec<FsEntry>, Option<PathBuf>, Vec<FsEntry>)> {
     let entries = list_dir(start)?;
     let parent_path = start.parent().map(|p| p.to_path_buf());
     let parent_entries = parent_path
