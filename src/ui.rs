@@ -50,11 +50,13 @@ impl FileManager {
         match &self.preview {
             PreviewContent::Directory(sub_files) => {
                 let list_sub_items: Vec<ListItem> = convert_to_listitems(sub_files).unwrap();
-                f.render_widget(Clear, layout[2]);
-                f.render_widget(&block, layout[2]);
 
                 let preview_directory_list = List::new(list_sub_items);
                 let inner_area = block.inner(layout[2]);
+
+                f.render_widget(Clear, layout[2]);
+                f.render_widget(&block, layout[2]);
+
                 if preview_directory_list.is_empty() {
                     f.render_widget(&empty_lists, layout[2]);
                 } else {
@@ -62,24 +64,22 @@ impl FileManager {
                 }
             }
             PreviewContent::File(FileContent::Text(data)) => {
-                f.render_widget(Clear, layout[2]);
-                f.render_widget(&block, layout[2]);
-
                 let preview_file_content_txt =
                     Paragraph::new(String::from(data)).wrap(Wrap { trim: true });
 
                 let inner_area = block.inner(layout[2]);
 
-                f.render_widget(Clear, inner_area);
+                f.render_widget(Clear, layout[2]);
+                f.render_widget(&block, layout[2]);
                 f.render_widget(preview_file_content_txt, inner_area);
             }
             PreviewContent::File(FileContent::Binary(data)) => {
+                let preview_file_content_binary =
+                    Paragraph::new(data.to_string()).wrap(Wrap { trim: true });
+                let inner_area = block.inner(layout[2]);
+
                 f.render_widget(Clear, layout[2]);
                 f.render_widget(&block, layout[2]);
-                let preview_file_content_binary = Paragraph::new(data.to_string())
-                    .wrap(Wrap { trim: true })
-                    .block(Block::default());
-                let inner_area = block.inner(layout[2]);
                 f.render_widget(preview_file_content_binary, inner_area);
             }
         }
