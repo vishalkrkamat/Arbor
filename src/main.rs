@@ -142,7 +142,7 @@ impl FileManager {
                     self.popup = PopupType::None;
                     self.refresh_current_directory(self.current_path.clone());
                 } else if let Err(err) = result {
-                    eprintln!("Failed to delete {:?}: {}", path, err);
+                    self.show_notification(format!("Failed to delete {:?}: {}", path, err));
                 }
             }
         }
@@ -253,7 +253,11 @@ impl FileManager {
 
                 if src_path.is_file() {
                     if let Err(e) = fs::copy(&src_path, &dst_path) {
-                        eprintln!("Failed to copy file {:?}: {}", src_path, e);
+                        self.show_notification(format!(
+                            "{} failed to copy the file {}",
+                            e,
+                            src_path.display()
+                        ));
                     }
                 } else if src_path.is_dir() {
                     self.recursively_copy_dir(&src_path, &dst_path);
