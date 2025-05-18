@@ -104,11 +104,15 @@ impl FileManager {
     }
 
     fn refresh_current_directory(&mut self, new_path: PathBuf) {
-        let (entries, parent_path, parent_entries) = get_state_data(&new_path).unwrap();
-        self.current_path = new_path;
-        self.entries = entries;
-        self.parent_view.path = parent_path;
-        self.parent_view.entries = parent_entries;
+        match get_state_data(&new_path) {
+            Ok((entries, parent_path, parent_entries)) => {
+                self.current_path = new_path;
+                self.entries = entries;
+                self.parent_view.path = parent_path;
+                self.parent_view.entries = parent_entries;
+            }
+            Err(e) => self.show_notification(e.to_string()),
+        }
     }
 
     fn refresh_preview_with_directory(&mut self, items: Vec<FsEntry>) {

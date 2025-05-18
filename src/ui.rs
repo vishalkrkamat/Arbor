@@ -18,7 +18,7 @@ impl FileManager {
         let list_current_items: Vec<ListItem> = convert_to_listitems(current_entries).unwrap();
 
         let list_parent_items: Vec<ListItem> = convert_to_listitems(parent_files).unwrap();
-        let current_directory = self.current_path.to_string_lossy();
+        let current_directory = Paragraph::new(self.current_path.to_string_lossy());
         let block = Block::bordered().border_type(Rounded).borders(Borders::ALL);
         let empty_lists = Paragraph::new("No Files")
             .alignment(Alignment::Center)
@@ -65,9 +65,8 @@ impl FileManager {
                 f.render_widget(Clear, layout[2]);
                 f.render_widget(&block, layout[2]);
 
-                let preview_file_content_txt = Paragraph::new(String::from(data))
-                    .wrap(Wrap { trim: true })
-                    .block(Block::default());
+                let preview_file_content_txt =
+                    Paragraph::new(String::from(data)).wrap(Wrap { trim: true });
 
                 let inner_area = block.inner(layout[2]);
 
@@ -85,7 +84,7 @@ impl FileManager {
             }
         }
 
-        f.render_widget(current_directory.to_string(), main_layout[0]);
+        f.render_widget(current_directory, main_layout[0]);
         f.render_widget(list_parent_files, layout[0]);
 
         if entry_lists.is_empty() {
