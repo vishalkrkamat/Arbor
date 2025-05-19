@@ -141,6 +141,7 @@ impl FileManager {
                 if result.is_ok() {
                     self.popup = PopupType::None;
                     self.refresh_current_directory(self.current_path.clone());
+                    self.refresh_preview();
                 } else if let Err(err) = result {
                     self.show_notification(format!("Failed to delete {:?}: {}", path, err));
                 }
@@ -219,6 +220,7 @@ impl FileManager {
 
     fn on_create_success(&mut self) {
         self.refresh_current_directory(self.current_path.clone());
+        self.refresh_preview();
         self.input_buffer.clear();
         self.popup = PopupType::None;
     }
