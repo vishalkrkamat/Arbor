@@ -27,6 +27,24 @@ pub fn list_dir(p: &PathBuf) -> std::io::Result<Vec<FsEntry>> {
     Ok(items)
 }
 
+pub fn recursively_copy_dir(src: &PathBuf, dst: &PathBuf) -> io::Result<()> {
+    fs::create_dir_all(dst)?;
+
+    if let Ok(entries) = fs::read_dir(src) {
+        for entry in entries.flatten() {
+            let src_path = entry.path();
+            let dst_path = dst.join(entry.file_name());
+
+            if src_path.is_file() {
+                fs::copy(&src_path, &dst_path)?;
+            } else if src_path.is_dir() {
+                recursively_copy_dir(&src_path, &dst_path)?;
+            }
+        }
+    }
+    Ok(())
+}
+
 pub fn read_valid_file(path: &PathBuf) -> io::Result<String> {
     fs::read_to_string(path)
 }

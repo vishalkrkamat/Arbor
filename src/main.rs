@@ -8,7 +8,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::thread;
-use utils::get_state_data;
+use utils::{get_state_data, recursively_copy_dir};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FsEntryType {
@@ -236,36 +236,13 @@ impl FileManager {
             if src.is_file() {
                 let _ = fs::copy(src, &dst);
             } else if src.is_dir() {
-                self.recursively_copy_dir(&src, &dst);
+                match recursively_copy_dir(&src, &dst) {
+                    Ok(success) => success,
+                    Err(e) => self.show_notification(e.to_string()),
+                };
             }
         }
         self.refresh_current_directory(self.current_path.clone());
-    }
-
-    fn recursively_copy_dir(&mut self, src: &PathBuf, dst: &PathBuf) {
-        if let Err(e) = fs::create_dir_all(dst) {
-            self.show_notification(format!("Error creating dir {:?}: {}", dst, e));
-            return;
-        }
-
-        if let Ok(entries) = fs::read_dir(src) {
-            for entry in entries.flatten() {
-                let src_path = entry.path();
-                let dst_path = dst.join(entry.file_name());
-
-                if src_path.is_file() {
-                    if let Err(e) = fs::copy(&src_path, &dst_path) {
-                        self.show_notification(format!(
-                            "{} failed to copy the file {}",
-                            e,
-                            src_path.display()
-                        ));
-                    }
-                } else if src_path.is_dir() {
-                    self.recursively_copy_dir(&src_path, &dst_path);
-                }
-            }
-        }
     }
 
     fn get_selected_paths(&self) -> Vec<PathBuf> {
