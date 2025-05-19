@@ -130,21 +130,19 @@ impl FileManager {
     }
 
     fn delete_selected(&mut self) {
-        if let Some(index) = self.selection.selected() {
-            if let Some(entry) = self.entries.get(index) {
-                let path = self.current_path.join(&entry.name);
-                let result = match entry.entry_type {
-                    FsEntryType::File => fs::remove_file(&path),
-                    FsEntryType::Directory => fs::remove_dir_all(&path),
-                };
+        if let Some(entry) = self.get_selected_index_entry() {
+            let path = self.current_path.join(&entry.name);
+            let result = match entry.entry_type {
+                FsEntryType::File => fs::remove_file(&path),
+                FsEntryType::Directory => fs::remove_dir_all(&path),
+            };
 
-                if result.is_ok() {
-                    self.popup = PopupType::None;
-                    self.refresh_current_directory(self.current_path.clone());
-                    self.refresh_preview();
-                } else if let Err(err) = result {
-                    self.show_notification(format!("Failed to delete {:?}: {}", path, err));
-                }
+            if result.is_ok() {
+                self.popup = PopupType::None;
+                self.refresh_current_directory(self.current_path.clone());
+                self.refresh_preview();
+            } else if let Err(err) = result {
+                self.show_notification(format!("Failed to delete {:?}: {}", path, err));
             }
         }
     }
@@ -164,16 +162,14 @@ impl FileManager {
     }
 
     fn rename_selected(&mut self, input: &mut String) {
-        if let Some(index) = self.selection.selected() {
-            if let Some(entry) = self.entries.get(index) {
-                let old_path = self.current_path.join(&entry.name);
-                let new_path = self.current_path.join(input.trim_end_matches('/'));
+        if let Some(entry) = self.get_selected_index_entry() {
+            let old_path = self.current_path.join(&entry.name);
+            let new_path = self.current_path.join(input.trim_end_matches('/'));
 
-                if fs::rename(&old_path, &new_path).is_ok() {
-                    self.refresh_current_directory(self.current_path.clone());
-                    self.input_buffer.clear();
-                    self.popup = PopupType::None;
-                }
+            if fs::rename(&old_path, &new_path).is_ok() {
+                self.refresh_current_directory(self.current_path.clone());
+                self.input_buffer.clear();
+                self.popup = PopupType::None;
             }
         }
     }
@@ -254,32 +250,30 @@ impl FileManager {
     }
 
     fn refresh_preview(&mut self) {
-        if let Some(index) = self.selection.selected() {
-            if let Some(entry) = self.entries.get(index) {
-                let path = self.current_path.join(&entry.name);
-                match entry.entry_type {
-                    FsEntryType::Directory => {
-                        let path_clone = path.clone();
-                        let (tx, rx) = mpsc::channel();
+        if let Some(entry) = self.get_selected_index_entry() {
+            let path = self.current_path.join(&entry.name);
+            match entry.entry_type {
+                FsEntryType::Directory => {
+                    let path_clone = path.clone();
+                    let (tx, rx) = mpsc::channel();
 
-                        thread::spawn(move || {
-                            let result = utils::list_dir(&path_clone);
-                            let _ = tx.send(result);
-                        });
+                    thread::spawn(move || {
+                        let result = utils::list_dir(&path_clone);
+                        let _ = tx.send(result);
+                    });
 
-                        if let Ok(result) = rx.recv() {
-                            match result {
-                                Ok(items) => self.refresh_preview_with_directory(items),
-                                Err(e) => self.show_notification(e.to_string()),
-                            }
+                    if let Ok(result) = rx.recv() {
+                        match result {
+                            Ok(items) => self.refresh_preview_with_directory(items),
+                            Err(e) => self.show_notification(e.to_string()),
                         }
                     }
-
-                    FsEntryType::File => match utils::read_valid_file(&path) {
-                        Ok(text) => self.refresh_preview_with_text_file(text),
-                        Err(e) => self.refresh_preview_with_binary_file(e.to_string()),
-                    },
                 }
+
+                FsEntryType::File => match utils::read_valid_file(&path) {
+                    Ok(text) => self.refresh_preview_with_text_file(text),
+                    Err(e) => self.refresh_preview_with_binary_file(e.to_string()),
+                },
             }
         }
     }
@@ -344,16 +338,14 @@ impl FileManager {
     }
 
     fn navigate_to_child(&mut self) {
-        if let Some(index) = self.selection.selected() {
-            if let Some(entry) = self.entries.get(index) {
-                if let FsEntryType::Directory = entry.entry_type {
-                    let mut path = self.current_path.clone();
-                    path.push(&entry.name);
-                    self.refresh_current_directory(path);
-                    self.parent_view.selection = self.selection.clone();
-                    self.selection = ListState::default().with_selected(Some(0));
-                    self.refresh_preview();
-                }
+        if let Some(entry) = self.get_selected_index_entry() {
+            if let FsEntryType::Directory = entry.entry_type {
+                let mut path = self.current_path.clone();
+                path.push(&entry.name);
+                self.refresh_current_directory(path);
+                self.parent_view.selection = self.selection.clone();
+                self.selection = ListState::default().with_selected(Some(0));
+                self.refresh_preview();
             }
         }
     }
@@ -379,6 +371,12 @@ impl FileManager {
                 self.notify = None;
             }
         }
+    }
+
+    fn get_selected_index_entry(&self) -> Option<&FsEntry> {
+        self.selection
+            .selected()
+            .and_then(|index| self.entries.get(index))
     }
 }
 
