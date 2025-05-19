@@ -46,7 +46,11 @@ pub fn recursively_copy_dir(src: &PathBuf, dst: &PathBuf) -> io::Result<()> {
 }
 
 pub fn read_valid_file(path: &PathBuf) -> io::Result<String> {
-    fs::read_to_string(path)
+    if fs::metadata(path)?.len() == 0 {
+        Ok("Empty File".to_string())
+    } else {
+        fs::read_to_string(path)
+    }
 }
 
 pub fn get_state_data(
