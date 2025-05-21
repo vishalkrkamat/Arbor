@@ -22,7 +22,7 @@ impl FileManager {
         let block = Block::bordered().border_type(Rounded).borders(Borders::ALL);
         let empty_lists = Paragraph::new("No Files")
             .alignment(Alignment::Center)
-            .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));
+            .block(block.clone());
 
         let main_layout = Layout::vertical([
             Constraint::Length(1),
