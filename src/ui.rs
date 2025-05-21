@@ -35,7 +35,7 @@ impl FileManager {
             .highlight_style(Style::default().bg(Color::Blue).fg(Color::Black))
             .add_modifier(Modifier::BOLD)
             .highlight_symbol(">>")
-            .block(Block::bordered().border_type(Rounded).borders(Borders::ALL));
+            .block(block.clone());
         let list_parent_files = List::new(list_parent_items).block(block.clone());
 
         let layout = Layout::default()
@@ -94,7 +94,7 @@ impl FileManager {
         }
 
         if let PopupType::Confirm = &self.popup {
-            let mut confirm_file_list = Paragraph::new("").wrap(Wrap { trim: false }); // placeholder
+            let mut confirm_file_list = Paragraph::new("").wrap(Wrap { trim: false });
 
             match self.mode {
                 InteractionMode::Normal => {
