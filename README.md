@@ -14,7 +14,7 @@ Arbor is an interactive, three-pane terminal-based file manager built using Rust
     * **Rename:** Rename files or directories via an interactive prompt.
     * **Create:** Create new files or directories (supports nested creation like `mkdir -p`) via an interactive prompt.
 * **✨ Selection Mode:** Enter a visual selection mode (`v`) to select multiple items for batch operations (like mass deletion).
-* **📋 Copy & Paste:** Copy single files/directories and paste them into the current directory (recursive directory copy).
+* **📋 Move/Copy & Paste:** Move/Copy multiple files/directories and paste them into the current directory (recursive directory copy).
 * **🚀 Interactive Popups:** Handles confirmations, renaming, and creation through clean TUI popups.
 * 
 ## 🎮 Controls
@@ -33,7 +33,8 @@ Arbor operates primarily in **Normal Mode**. Some actions involve temporary popu
 | `r`         | Initiate rename for the selected item (opens rename prompt)           |
 | `a`         | Initiate create file/directory (opens creation prompt)                |
 | `y`         | Copy (Yank) the selected file or directory                            |
-| `p`         | Paste the copied item(s) into the current directory                   |
+| `x`         | Move the selected file or directory                                   |
+| `p`         | Paste the copied/cut item(s) into the current directory               |
 | `v`         | Enter **Selection Mode** (visually select multiple items)             |
 | `q`         | Quit the application                                                  |
 
