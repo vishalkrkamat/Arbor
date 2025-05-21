@@ -45,6 +45,18 @@ pub fn recursively_copy_dir(src: &PathBuf, dst: &PathBuf) -> io::Result<()> {
     Ok(())
 }
 
+pub fn move_file(src: &PathBuf, dst: &PathBuf) -> io::Result<()> {
+    let result = recursively_copy_dir(src, dst);
+    if result.is_ok() {
+        if src.is_file() {
+            fs::remove_file(src)?
+        } else {
+            fs::remove_dir_all(src)?
+        }
+    }
+    result
+}
+
 pub fn read_valid_file(path: &PathBuf) -> io::Result<String> {
     if fs::metadata(path)?.len() == 0 {
         Ok("Empty File".to_string())

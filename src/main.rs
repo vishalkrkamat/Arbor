@@ -8,7 +8,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::thread;
-use utils::{get_state_data, recursively_copy_dir};
+use utils::{get_state_data, move_file, recursively_copy_dir};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FsEntryType {
@@ -56,6 +56,19 @@ pub struct Notification {
     duration: Duration,
 }
 
+#[derive(Debug, Clone)]
+pub enum Action {
+    Move,
+    Copy,
+    None,
+}
+
+#[derive(Debug, Clone)]
+pub struct Clipboard {
+    paths: Vec<PathBuf>,
+    action: Action,
+}
+
 #[derive(Debug)]
 pub struct FileManager {
     parent_view: ParentView,
@@ -65,7 +78,7 @@ pub struct FileManager {
     selection: ListState,
     mode: InteractionMode,
     notify: Option<Notification>,
-    clipboard: Vec<PathBuf>,
+    clipboard: Clipboard,
     input_buffer: String,
     popup: PopupType,
 }
@@ -93,7 +106,10 @@ impl FileManager {
             selection: ListState::default().with_selected(Some(0)),
             mode: InteractionMode::Normal,
             notify: None,
-            clipboard: vec![],
+            clipboard: Clipboard {
+                paths: vec![],
+                action: Action::None,
+            },
             input_buffer: String::new(),
             popup: PopupType::None,
         };
@@ -221,21 +237,49 @@ impl FileManager {
         self.popup = PopupType::None;
     }
 
-    fn copy_selected(&mut self) {
-        self.clipboard = self.get_selected_paths();
+    fn copy_selected_entries(&mut self) {
+        self.clipboard.action = Action::Copy;
+        self.clipboard.paths = self.get_selected_paths();
+    }
+    fn move_selected_entries(&mut self) {
+        self.clipboard.action = Action::Move;
+        self.clipboard.paths = self.get_selected_paths();
     }
 
     fn paste_clipboard(&mut self) {
         let clipboard = self.clipboard.clone();
-        for src in clipboard {
+        for src in clipboard.paths {
             let dst = self.current_path.join(src.file_name().unwrap());
             if src.is_file() {
-                let _ = fs::copy(src, &dst);
+                match self.clipboard.action {
+                    Action::Move => {
+                        if fs::copy(&src, &dst).is_ok() {
+                            if let Err(e) = fs::remove_file(&src) {
+                                self.show_notification(e.to_string())
+                            }
+                        };
+                    }
+                    Action::Copy => {
+                        if let Err(e) = fs::copy(src, &dst) {
+                            self.show_notification(e.to_string())
+                        }
+                    }
+                    _ => {}
+                }
             } else if src.is_dir() {
-                match recursively_copy_dir(&src, &dst) {
-                    Ok(success) => success,
-                    Err(e) => self.show_notification(e.to_string()),
-                };
+                match self.clipboard.action {
+                    Action::Move => {
+                        if let Err(e) = move_file(&src, &dst) {
+                            self.show_notification(e.to_string())
+                        }
+                    }
+                    Action::Copy => {
+                        if let Err(e) = recursively_copy_dir(&src, &dst) {
+                            self.show_notification(e.to_string())
+                        }
+                    }
+                    _ => {}
+                }
             }
         }
         self.refresh_current_directory(self.current_path.clone());
