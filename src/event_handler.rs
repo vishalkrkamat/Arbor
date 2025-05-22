@@ -1,6 +1,4 @@
-use crate::FileManager;
-use crate::InteractionMode;
-use crate::PopupType;
+use crate::{FileManager, InteractionMode, PopupType};
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::DefaultTerminal;
 use std::io;

@@ -1,9 +1,11 @@
-use crate::FsEntry;
-use crate::FsEntryType;
-use ratatui::layout::{Constraint, Flex, Layout, Rect};
-use ratatui::style::{Color, Style};
-use ratatui::text::Span;
-use ratatui::widgets::ListItem;
+use crate::{FsEntry, FsEntryType};
+use ratatui::{
+    layout::{Constraint, Flex, Layout, Rect},
+    style::{Color, Style},
+    text::Span,
+    widgets::ListItem,
+};
+
 use std::path::PathBuf;
 use std::{fs, io};
 

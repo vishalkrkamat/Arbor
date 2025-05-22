@@ -2,12 +2,8 @@ mod event_handler;
 use std::time::{Duration, Instant};
 mod ui;
 mod utils;
-
 use ratatui::widgets::ListState;
-use std::fs;
-use std::path::PathBuf;
-use std::sync::mpsc;
-use std::thread;
+use std::{fs, path::PathBuf, sync::mpsc, thread};
 use utils::{get_state_data, move_file, recursively_copy_dir};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -56,7 +52,7 @@ pub struct Notification {
     duration: Duration,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Action {
     Move,
     Copy,
@@ -283,6 +279,7 @@ impl FileManager {
             }
         }
         self.refresh_current_directory(self.current_path.clone());
+        self.clipboard.action = Action::None
     }
 
     fn get_selected_paths(&self) -> Vec<PathBuf> {
@@ -342,21 +339,21 @@ impl FileManager {
     }
 
     fn navigate_down(&mut self) {
-        self.select_current();
         self.selection.select_next();
         if self.selection.selected().unwrap_or(0) >= self.entries.len() {
             self.selection.select(Some(0));
         }
+        self.select_current();
         self.refresh_preview();
     }
 
     fn navigate_up(&mut self) {
-        self.select_current();
         let len = self.entries.len();
         if self.selection.selected().unwrap_or(0) == 0 {
             self.selection.select(Some(len));
         }
         self.selection.select_previous();
+        self.select_current();
         self.refresh_preview();
     }
 

@@ -1,11 +1,12 @@
 use crate::utils::{bottom_right_area, convert_to_listitems, popup_area};
-use crate::InteractionMode;
-use crate::PopupType;
-use crate::PreviewContent;
-use crate::{FileContent, FileManager};
+use crate::{
+    Action, FileContent, FileManager, FsEntryType, InteractionMode, PopupType, PreviewContent,
+};
 use ratatui::prelude::*;
 use ratatui::{
     layout::{Constraint, Flex},
+    style::{Color, Style},
+    text::{Line, Span},
     widgets::{Block, BorderType::Rounded, Borders, Clear, List, ListItem, Paragraph, Wrap},
     Frame,
 };
@@ -15,7 +16,37 @@ impl FileManager {
         let selection_state = &mut self.selection;
         let parent_files = &self.parent_view.entries;
         let current_entries = &self.entries;
-        let list_current_items: Vec<ListItem> = convert_to_listitems(current_entries);
+        let clipboard_action = &self.clipboard.action;
+
+        let list_current_items: Vec<ListItem> = current_entries
+            .iter()
+            .map(|entry| {
+                let (bar, bar_style) = if entry.is_selected {
+                    match clipboard_action {
+                        Action::Move => ("▌", Style::default().fg(Color::Red)),
+                        Action::Copy => ("▌", Style::default().fg(Color::Green)),
+                        Action::None => ("▌", Style::default().fg(Color::Yellow)),
+                    }
+                } else {
+                    (" ", Style::default())
+                };
+
+                let icon = match entry.entry_type {
+                    FsEntryType::Directory => "📁",
+                    FsEntryType::File => "📄",
+                };
+
+                let text = Line::from(vec![
+                    Span::styled(bar, bar_style),
+                    Span::raw(" "),
+                    Span::raw(icon),
+                    Span::raw(" "),
+                    Span::raw(&entry.name),
+                ]);
+
+                ListItem::new(text)
+            })
+            .collect();
 
         let list_parent_items: Vec<ListItem> = convert_to_listitems(parent_files);
         let current_directory = Paragraph::new(self.current_path.to_string_lossy());
