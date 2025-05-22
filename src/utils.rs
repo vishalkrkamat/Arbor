@@ -6,14 +6,15 @@ use ratatui::{
     widgets::ListItem,
 };
 
-use std::path::PathBuf;
 use std::{fs, io};
+use std::{os::unix::fs::MetadataExt, path::PathBuf};
 
 pub fn list_dir(p: &PathBuf) -> std::io::Result<Vec<FsEntry>> {
     let mut items = Vec::new();
     for entry in fs::read_dir(p)? {
         let entry = entry?;
         let meta = entry.metadata()?;
+        let file_size = meta.size();
         let file_type = if meta.is_dir() {
             FsEntryType::Directory
         } else {
@@ -22,6 +23,7 @@ pub fn list_dir(p: &PathBuf) -> std::io::Result<Vec<FsEntry>> {
         let item = FsEntry {
             name: entry.file_name().into_string().unwrap(),
             entry_type: file_type,
+            size: file_size,
             is_selected: false,
         };
         items.push(item);
@@ -96,6 +98,24 @@ pub fn convert_to_listitems(f: &[FsEntry]) -> Vec<ListItem> {
         })
         .collect();
     list_items
+}
+
+pub fn format_size(size: u64) -> String {
+    const KB: f64 = 1024.0;
+    const MB: f64 = KB * 1024.0;
+    const GB: f64 = MB * 1024.0;
+
+    let size_f = size as f64;
+
+    if size_f >= GB {
+        format!("{:.2} GB", size_f / GB)
+    } else if size_f >= MB {
+        format!("{:.2} MB", size_f / MB)
+    } else if size_f >= KB {
+        format!("{:.2} KB", size_f / KB)
+    } else {
+        format!("{} B", size)
+    }
 }
 
 //PopUp UI constructor

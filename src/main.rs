@@ -16,6 +16,7 @@ pub enum FsEntryType {
 pub struct FsEntry {
     name: String,
     entry_type: FsEntryType,
+    size: u64,
     is_selected: bool,
 }
 

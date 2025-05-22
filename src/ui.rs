@@ -1,4 +1,4 @@
-use crate::utils::{bottom_right_area, convert_to_listitems, popup_area};
+use crate::utils::{bottom_right_area, convert_to_listitems, format_size, popup_area};
 use crate::{
     Action, FileContent, FileManager, FsEntryType, InteractionMode, PopupType, PreviewContent,
 };
@@ -254,5 +254,46 @@ impl FileManager {
             f.render_widget(Clear, area);
             f.render_widget(text, area);
         }
+
+        let bottom_layout = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
+            .split(main_layout[2]);
+
+        let mut size_display = Span::raw("");
+
+        if let Some(entry) = self.get_selected_index_entry() {
+            if entry.entry_type == FsEntryType::File {
+                let size = format_size(entry.size);
+                size_display = Span::styled(
+                    format!(" | Size: {}", size),
+                    Style::default().fg(Color::LightMagenta),
+                );
+            }
+        }
+
+        let mode_display = match self.mode {
+            InteractionMode::Normal => Span::styled(
+                "🔵 Mode: Normal",
+                Style::default()
+                    .fg(Color::Blue)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            InteractionMode::MultiSelect => Span::styled(
+                "🟢 Mode: Multi-Select",
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            ),
+        };
+
+        // Combine mode + size
+        let combined_info = Line::from(vec![mode_display, size_display]);
+
+        let mode_paragraph = Paragraph::new(Line::from(combined_info))
+            .block(Block::default().borders(Borders::NONE))
+            .alignment(Alignment::Left);
+
+        f.render_widget(mode_paragraph, bottom_layout[0]);
     }
 }
