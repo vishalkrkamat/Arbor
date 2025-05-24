@@ -1,4 +1,6 @@
-use crate::utils::{bottom_right_area, convert_to_listitems, format_size, popup_area};
+use crate::utils::{
+    bottom_right_area, convert_to_listitems, format_size, mode_to_string, popup_area,
+};
 use crate::{
     Action, FileContent, FileManager, FsEntryType, InteractionMode, PopupType, PreviewContent,
 };
@@ -295,5 +297,22 @@ impl FileManager {
             .alignment(Alignment::Left);
 
         f.render_widget(mode_paragraph, bottom_layout[0]);
+
+        let mut per_display = Span::raw("");
+        if let Some(entry) = self.get_selected_index_entry() {
+            let permission = entry.file_permission;
+
+            let permisson_str = mode_to_string(permission);
+            per_display = Span::styled(
+                format!("Permisson: {} ", permisson_str),
+                Style::default().fg(Color::LightCyan),
+            );
+        }
+
+        let per_paragraph = Paragraph::new(per_display)
+            .block(Block::default().borders(Borders::NONE))
+            .alignment(Alignment::Right);
+
+        f.render_widget(per_paragraph, bottom_layout[1]);
     }
 }

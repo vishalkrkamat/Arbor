@@ -15,6 +15,7 @@ pub fn list_dir(p: &PathBuf) -> std::io::Result<Vec<FsEntry>> {
         let entry = entry?;
         let meta = entry.metadata()?;
         let file_size = meta.size();
+        let permission: u32 = meta.mode();
         let file_type = if meta.is_dir() {
             FsEntryType::Directory
         } else {
@@ -24,6 +25,7 @@ pub fn list_dir(p: &PathBuf) -> std::io::Result<Vec<FsEntry>> {
             name: entry.file_name().into_string().unwrap(),
             entry_type: file_type,
             size: file_size,
+            file_permission: permission,
             is_selected: false,
         };
         items.push(item);
@@ -67,6 +69,33 @@ pub fn read_valid_file(path: &PathBuf) -> io::Result<String> {
     } else {
         fs::read_to_string(path)
     }
+}
+
+pub fn mode_to_string(mode: u32) -> String {
+    let mut result = String::new();
+
+    // Each tuple is (bitmask, char to use if bit is set)
+    let flags = [
+        (0o400, 'r'),
+        (0o200, 'w'),
+        (0o100, 'x'), // user
+        (0o040, 'r'),
+        (0o020, 'w'),
+        (0o010, 'x'), // group
+        (0o004, 'r'),
+        (0o002, 'w'),
+        (0o001, 'x'), // others
+    ];
+
+    for (bit, ch) in flags {
+        if mode & bit != 0 {
+            result.push(ch);
+        } else {
+            result.push('-');
+        }
+    }
+
+    result
 }
 
 pub fn get_state_data(

@@ -17,6 +17,7 @@ pub struct FsEntry {
     name: String,
     entry_type: FsEntryType,
     size: u64,
+    file_permission: u32,
     is_selected: bool,
 }
 
