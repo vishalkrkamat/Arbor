@@ -67,7 +67,6 @@ impl FileManager {
         let entry_lists = List::new(list_current_items)
             .highlight_style(Style::default().bg(Color::Blue).fg(Color::Black))
             .add_modifier(Modifier::BOLD)
-            .highlight_symbol(">>")
             .block(block.clone());
         let list_parent_files = List::new(list_parent_items).block(block.clone());
 
