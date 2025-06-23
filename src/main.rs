@@ -235,13 +235,27 @@ impl FileManager {
         self.popup = PopupType::None;
     }
 
+    fn set_clipboard_entries(&mut self) {
+        if self.mode == InteractionMode::Normal
+            && !self.entries.iter().any(|entry| entry.is_selected)
+        {
+            if let Some(entry) = self.get_selected_index_entry() {
+                self.clipboard.paths =
+                    vec![self.current_path.join(&entry.name).canonicalize().unwrap()];
+            }
+        } else {
+            self.clipboard.paths = self.get_selected_paths();
+        }
+    }
+
     fn copy_selected_entries(&mut self) {
         self.clipboard.action = Action::Copy;
-        self.clipboard.paths = self.get_selected_paths();
+        self.set_clipboard_entries();
     }
+
     fn move_selected_entries(&mut self) {
         self.clipboard.action = Action::Move;
-        self.clipboard.paths = self.get_selected_paths();
+        self.set_clipboard_entries();
     }
 
     fn paste_clipboard(&mut self) {
