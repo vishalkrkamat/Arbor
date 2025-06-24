@@ -1,7 +1,13 @@
 [package]
-name = "Arbor"
+name = "arbor"
+description = "A terminal-based file manager for Linux, inspired by Yazi and Ranger, featuring a three-pane layout and Vim-style keybindings."
 version = "0.1.0"
 edition = "2021"
+readme = "README.md"
+license = "MIT"
+repository = "https://github.com/vishalkrkamat/Arbor"
+keywords = ["file-manager", "terminal", "tui", "cli", "rust"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 crossterm = "0.28.1"
