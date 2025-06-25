@@ -414,10 +414,12 @@ impl FileManager {
     }
 
     fn toggle_confirmation_popup(&mut self) {
-        self.popup = match self.popup {
-            PopupType::Confirm => PopupType::None,
-            _ => PopupType::Confirm,
-        };
+        if !self.entries.is_empty() {
+            self.popup = match self.popup {
+                PopupType::Confirm => PopupType::None,
+                _ => PopupType::Confirm,
+            };
+        }
     }
 
     fn show_notification(&mut self, message: String) {

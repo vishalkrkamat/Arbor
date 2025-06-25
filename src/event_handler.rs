@@ -65,7 +65,11 @@ impl FileManager {
                             KeyCode::Char('h') => self.navigate_to_parent(),
                             KeyCode::Char('l') => self.navigate_to_child(),
                             KeyCode::Char('d') => self.toggle_confirmation_popup(),
-                            KeyCode::Char('r') => self.popup = PopupType::Rename,
+                            KeyCode::Char('r') => {
+                                if !self.entries.is_empty() {
+                                    self.popup = PopupType::Rename
+                                }
+                            }
                             KeyCode::Char('a') => self.popup = PopupType::Create,
                             KeyCode::Char('y') => self.copy_selected_entries(),
                             KeyCode::Char('x') => self.move_selected_entries(),
