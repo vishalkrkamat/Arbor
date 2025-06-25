@@ -175,7 +175,7 @@ impl FileManager {
         self.mode = InteractionMode::Normal;
     }
 
-    fn rename_selected(&mut self, input: &mut String) {
+    fn rename_selected(&mut self, input: &mut str) {
         if let Some(entry) = self.get_selected_index_entry() {
             let old_path = self.current_path.join(&entry.name);
             let new_path = self.current_path.join(input.trim_end_matches('/'));
@@ -239,6 +239,12 @@ impl FileManager {
         if self.mode == InteractionMode::Normal
             && !self.entries.iter().any(|entry| entry.is_selected)
         {
+            if let Some(current_selection) = self.selection.selected() {
+                if let Some(selected_item) = self.entries.get_mut(current_selection) {
+                    selected_item.is_selected = true;
+                }
+            }
+
             if let Some(entry) = self.get_selected_index_entry() {
                 self.clipboard.paths =
                     vec![self.current_path.join(&entry.name).canonicalize().unwrap()];

@@ -305,7 +305,7 @@ impl FileManager {
         // Combine mode + size
         let combined_info = Line::from(vec![mode_display, size_display]);
 
-        let mode_paragraph = Paragraph::new(Line::from(combined_info))
+        let mode_paragraph = Paragraph::new(combined_info)
             .block(Block::default().borders(Borders::NONE))
             .alignment(Alignment::Left);
 
