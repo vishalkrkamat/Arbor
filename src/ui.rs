@@ -19,10 +19,12 @@ impl FileManager {
         let parent_files = &self.parent_view.entries;
         let current_entries = &self.entries;
         let clipboard_action = &self.clipboard.action;
+        let cursor_index = selection_state.selected();
 
         let list_current_items: Vec<ListItem> = current_entries
             .iter()
-            .map(|entry| {
+            .enumerate()
+            .map(|(index, entry)| {
                 let (bar, bar_style) = if entry.is_selected {
                     match clipboard_action {
                         Action::Move => ("▌", Style::default().fg(Color::Red)),
@@ -38,12 +40,22 @@ impl FileManager {
                     FsEntryType::File => "📄",
                 };
 
+                let is_cursor_row = cursor_index == Some(index);
+
                 let text = Line::from(vec![
                     Span::styled(bar, bar_style),
                     Span::raw(" "),
-                    Span::raw(icon),
-                    Span::raw(" "),
-                    Span::raw(&entry.name),
+                    Span::styled(
+                        format!("{} {}", icon, entry.name),
+                        if is_cursor_row {
+                            Style::default()
+                                .bg(Color::Blue)
+                                .fg(Color::Black)
+                                .add_modifier(Modifier::BOLD)
+                        } else {
+                            Style::default()
+                        },
+                    ),
                 ]);
 
                 ListItem::new(text)
@@ -65,7 +77,9 @@ impl FileManager {
         .split(f.area());
 
         let entry_lists = List::new(list_current_items)
-            .highlight_style(Style::default().bg(Color::Blue).fg(Color::Black))
+            .highlight_style(
+                Style::default().bg(Color::Blue), //     .fg(Color::Black)
+            )
             .add_modifier(Modifier::BOLD)
             .block(block.clone());
         let list_parent_files = List::new(list_parent_items).block(block.clone());
