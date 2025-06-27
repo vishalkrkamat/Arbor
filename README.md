@@ -60,7 +60,7 @@ Arbor operates primarily in **Normal Mode**. Some actions involve temporary popu
 
 ## ⚠️ Development Status & Running the Application
 
-This project is currently under **rapid development**. Expect frequent changes, potentially breaking ones, and know that major improvements are still needed to enhance stability and feature completeness. 
+This project is currently in its **very early stages of development**. Expect frequent and potentially breaking changes, as many important features are still under construction and stability improvements are ongoing.
 
 ## 🛠️ Installation
 
