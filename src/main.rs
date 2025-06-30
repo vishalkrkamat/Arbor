@@ -3,8 +3,8 @@ use std::time::{Duration, Instant};
 mod ui;
 mod utils;
 use ratatui::widgets::ListState;
-use std::{fs, path::PathBuf, sync::mpsc, thread};
-use utils::{get_state_data, move_file, recursively_copy_dir};
+use std::{fs, path::PathBuf};
+use utils::{copy_dir_iterative, get_state_data, move_file};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FsEntryType {
@@ -89,8 +89,8 @@ pub struct ParentView {
 }
 
 impl FileManager {
-    fn new(start_path: &PathBuf) -> Result<Self, std::io::Error> {
-        let (entries, parent_path, parent_entries) = get_state_data(start_path).unwrap();
+    async fn new(start_path: &PathBuf) -> Result<Self, std::io::Error> {
+        let (entries, parent_path, parent_entries) = get_state_data(start_path).await.unwrap();
 
         let mut state = Self {
             parent_view: ParentView {
@@ -112,13 +112,13 @@ impl FileManager {
             popup: PopupType::None,
         };
 
-        state.refresh_preview();
+        state.refresh_preview().await;
         state.update_parent_selection();
         Ok(state)
     }
 
-    fn refresh_current_directory(&mut self, new_path: PathBuf) {
-        match get_state_data(&new_path) {
+    async fn refresh_current_directory(&mut self, new_path: PathBuf) {
+        match get_state_data(&new_path).await {
             Ok((entries, parent_path, parent_entries)) => {
                 self.current_path = new_path;
                 self.entries = entries;
@@ -129,12 +129,12 @@ impl FileManager {
         }
     }
 
-    fn refresh_preview_with_directory(&mut self, items: Vec<FsEntry>) {
+    async fn refresh_preview_with_directory(&mut self, items: Vec<FsEntry>) {
         self.preview = PreviewContent::Directory(items);
         self.update_parent_selection();
     }
 
-    fn refresh_preview_with_text_file(&mut self, content: String) {
+    async fn refresh_preview_with_text_file(&mut self, content: String) {
         self.preview = PreviewContent::File(FileContent::Text(content));
         self.update_parent_selection();
     }
@@ -143,7 +143,7 @@ impl FileManager {
         self.preview = PreviewContent::File(FileContent::Binary(content));
     }
 
-    fn delete_selected(&mut self) {
+    async fn delete_selected(&mut self) {
         if let Some(entry) = self.get_selected_index_entry() {
             let path = self.current_path.join(&entry.name);
             let result = match entry.entry_type {
@@ -153,15 +153,16 @@ impl FileManager {
 
             if result.is_ok() {
                 self.popup = PopupType::None;
-                self.refresh_current_directory(self.current_path.clone());
-                self.refresh_preview();
+                self.refresh_current_directory(self.current_path.clone())
+                    .await;
+                self.refresh_preview().await;
             } else if let Err(err) = result {
                 self.show_notification(format!("Failed to delete {:?}: {}", path, err));
             }
         }
     }
 
-    fn delete_multiple(&mut self) {
+    async fn delete_multiple(&mut self) {
         for path in self.get_selected_paths() {
             let _ = if path.is_file() {
                 fs::remove_file(path)
@@ -170,25 +171,27 @@ impl FileManager {
             };
         }
 
-        self.refresh_current_directory(self.current_path.clone());
+        self.refresh_current_directory(self.current_path.clone())
+            .await;
         self.toggle_confirmation_popup();
         self.mode = InteractionMode::Normal;
     }
 
-    fn rename_selected(&mut self, input: &mut str) {
+    async fn rename_selected(&mut self, input: &mut str) {
         if let Some(entry) = self.get_selected_index_entry() {
             let old_path = self.current_path.join(&entry.name);
             let new_path = self.current_path.join(input.trim_end_matches('/'));
 
             if fs::rename(&old_path, &new_path).is_ok() {
-                self.refresh_current_directory(self.current_path.clone());
+                self.refresh_current_directory(self.current_path.clone())
+                    .await;
                 self.input_buffer.clear();
                 self.popup = PopupType::None;
             }
         }
     }
 
-    fn create_entry(&mut self, input: String) {
+    async fn create_entry(&mut self, input: String) {
         let is_directory = input.ends_with('/');
         let trimmed_input = input.trim_end_matches('/');
         let mut segments: Vec<&str> = trimmed_input.split('/').collect();
@@ -207,30 +210,31 @@ impl FileManager {
             path.push(name);
 
             if is_directory {
-                self.create_directory(path);
+                self.create_directory(path).await;
             } else {
-                self.create_file(path);
+                self.create_file(path).await;
             }
         }
     }
 
-    fn create_directory(&mut self, path: PathBuf) {
+    async fn create_directory(&mut self, path: PathBuf) {
         match fs::create_dir_all(&path) {
-            Ok(_) => self.on_create_success(),
+            Ok(_) => self.on_create_success().await,
             Err(e) => self.show_notification(e.to_string()),
         }
     }
 
-    fn create_file(&mut self, path: PathBuf) {
+    async fn create_file(&mut self, path: PathBuf) {
         match fs::File::create(&path) {
-            Ok(_) => self.on_create_success(),
+            Ok(_) => self.on_create_success().await,
             Err(e) => self.show_notification(e.to_string()),
         }
     }
 
-    fn on_create_success(&mut self) {
-        self.refresh_current_directory(self.current_path.clone());
-        self.refresh_preview();
+    async fn on_create_success(&mut self) {
+        self.refresh_current_directory(self.current_path.clone())
+            .await;
+        self.refresh_preview().await;
         self.input_buffer.clear();
         self.popup = PopupType::None;
     }
@@ -254,17 +258,17 @@ impl FileManager {
         }
     }
 
-    fn copy_selected_entries(&mut self) {
+    async fn copy_selected_entries(&mut self) {
         self.clipboard.action = Action::Copy;
         self.set_clipboard_entries();
     }
 
-    fn move_selected_entries(&mut self) {
+    async fn move_selected_entries(&mut self) {
         self.clipboard.action = Action::Move;
         self.set_clipboard_entries();
     }
 
-    fn paste_clipboard(&mut self) {
+    async fn paste_clipboard(&mut self) {
         let clipboard = self.clipboard.clone();
         for src in clipboard.paths {
             let dst = self.current_path.join(src.file_name().unwrap());
@@ -287,12 +291,12 @@ impl FileManager {
             } else if src.is_dir() {
                 match self.clipboard.action {
                     Action::Move => {
-                        if let Err(e) = move_file(&src, &dst) {
+                        if let Err(e) = move_file(&src, &dst).await {
                             self.show_notification(e.to_string())
                         }
                     }
                     Action::Copy => {
-                        if let Err(e) = recursively_copy_dir(&src, &dst) {
+                        if let Err(e) = copy_dir_iterative(&src, &dst).await {
                             self.show_notification(e.to_string())
                         }
                     }
@@ -300,7 +304,8 @@ impl FileManager {
                 }
             }
         }
-        self.refresh_current_directory(self.current_path.clone());
+        self.refresh_current_directory(self.current_path.clone())
+            .await;
         self.clipboard.action = Action::None
     }
 
@@ -312,36 +317,24 @@ impl FileManager {
             .collect()
     }
 
-    fn refresh_preview(&mut self) {
+    async fn refresh_preview(&mut self) {
         if let Some(entry) = self.get_selected_index_entry() {
             let path = self.current_path.join(&entry.name);
             match entry.entry_type {
-                FsEntryType::Directory => {
-                    let path_clone = path.clone();
-                    let (tx, rx) = mpsc::channel();
+                FsEntryType::Directory => match utils::list_dir(&path).await {
+                    Ok(items) => self.refresh_preview_with_directory(items).await,
+                    Err(e) => self.show_notification(e.to_string()),
+                },
 
-                    thread::spawn(move || {
-                        let result = utils::list_dir(&path_clone);
-                        let _ = tx.send(result);
-                    });
-
-                    if let Ok(result) = rx.recv() {
-                        match result {
-                            Ok(items) => self.refresh_preview_with_directory(items),
-                            Err(e) => self.show_notification(e.to_string()),
-                        }
-                    }
-                }
-
-                FsEntryType::File => match utils::read_valid_file(&path) {
-                    Ok(text) => self.refresh_preview_with_text_file(text),
+                FsEntryType::File => match utils::read_valid_file(&path).await {
+                    Ok(text) => self.refresh_preview_with_text_file(text).await,
                     Err(e) => self.refresh_preview_with_binary_file(e.to_string()),
                 },
             }
         }
     }
 
-    fn select_current(&mut self) {
+    async fn select_current(&mut self) {
         if let InteractionMode::MultiSelect = self.mode {
             if let Some(index) = self.selection.selected() {
                 if let Some(entry) = self.entries.get_mut(index) {
@@ -351,32 +344,33 @@ impl FileManager {
         }
     }
 
-    fn deselect_all(&mut self) {
+    async fn deselect_all(&mut self) {
         if let InteractionMode::Normal = self.mode {
             for entry in &mut self.entries {
                 entry.is_selected = false;
             }
-            self.refresh_current_directory(self.current_path.clone());
+            self.refresh_current_directory(self.current_path.clone())
+                .await;
         }
     }
 
-    fn navigate_down(&mut self) {
+    async fn navigate_down(&mut self) {
         self.selection.select_next();
         if self.selection.selected().unwrap_or(0) >= self.entries.len() {
             self.selection.select(Some(0));
         }
-        self.select_current();
-        self.refresh_preview();
+        self.select_current().await;
+        self.refresh_preview().await;
     }
 
-    fn navigate_up(&mut self) {
+    async fn navigate_up(&mut self) {
         let len = self.entries.len();
         if self.selection.selected().unwrap_or(0) == 0 {
             self.selection.select(Some(len));
         }
         self.selection.select_previous();
-        self.select_current();
-        self.refresh_preview();
+        self.select_current().await;
+        self.refresh_preview().await;
     }
 
     fn update_parent_selection(&mut self) {
@@ -392,23 +386,23 @@ impl FileManager {
         }
     }
 
-    fn navigate_to_parent(&mut self) {
+    async fn navigate_to_parent(&mut self) {
         if let Some(ref parent_path) = self.parent_view.path {
-            self.refresh_current_directory(parent_path.clone());
+            self.refresh_current_directory(parent_path.clone()).await;
             self.selection = self.parent_view.selection.clone();
-            self.refresh_preview();
+            self.refresh_preview().await;
         }
     }
 
-    fn navigate_to_child(&mut self) {
+    async fn navigate_to_child(&mut self) {
         if let Some(entry) = self.get_selected_index_entry() {
             if let FsEntryType::Directory = entry.entry_type {
                 let mut path = self.current_path.clone();
                 path.push(&entry.name);
-                self.refresh_current_directory(path);
+                self.refresh_current_directory(path).await;
                 self.parent_view.selection = self.selection.clone();
                 self.selection = ListState::default().with_selected(Some(0));
-                self.refresh_preview();
+                self.refresh_preview().await;
             }
         }
     }
@@ -445,14 +439,16 @@ impl FileManager {
     }
 }
 
-fn main() -> std::io::Result<()> {
+#[tokio::main]
+async fn main() -> std::io::Result<()> {
     let terminal = ratatui::init();
 
     let start_dir = PathBuf::from(".");
     let absolute_path = start_dir.canonicalize().expect("Failed to resolve path");
 
-    let exit_result = FileManager::new(&absolute_path).unwrap().run(terminal);
+    let fm = FileManager::new(&absolute_path).await?;
+    let result = fm.run(terminal).await;
 
     ratatui::restore();
-    exit_result
+    result
 }

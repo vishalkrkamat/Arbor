@@ -5,15 +5,21 @@ use ratatui::{
     text::Span,
     widgets::ListItem,
 };
+use std::collections::VecDeque;
 
-use std::{fs, io};
-use std::{os::unix::fs::MetadataExt, path::PathBuf};
+//use std::{fs, io};
+use std::{
+    os::unix::fs::MetadataExt,
+    path::{Path, PathBuf},
+};
+use tokio::{fs, io};
 
-pub fn list_dir(p: &PathBuf) -> std::io::Result<Vec<FsEntry>> {
+pub async fn list_dir(p: &PathBuf) -> tokio::io::Result<Vec<FsEntry>> {
+    let mut rd = fs::read_dir(p).await?;
     let mut items = Vec::new();
-    for entry in fs::read_dir(p)? {
-        let entry = entry?;
-        let meta = entry.metadata()?;
+
+    while let Some(entry) = rd.next_entry().await? {
+        let meta = entry.metadata().await?;
         let file_size = meta.size();
         let permission: u32 = meta.mode();
         let file_type = if meta.is_dir() {
@@ -33,41 +39,46 @@ pub fn list_dir(p: &PathBuf) -> std::io::Result<Vec<FsEntry>> {
     Ok(items)
 }
 
-pub fn recursively_copy_dir(src: &PathBuf, dst: &PathBuf) -> io::Result<()> {
-    fs::create_dir_all(dst)?;
+pub async fn copy_dir_iterative(src: &Path, dst: &Path) -> io::Result<()> {
+    let mut todo = VecDeque::new();
+    todo.push_back((src.to_path_buf(), dst.to_path_buf()));
 
-    if let Ok(entries) = fs::read_dir(src) {
-        for entry in entries.flatten() {
+    while let Some((cur_src, cur_dst)) = todo.pop_back() {
+        fs::create_dir_all(&cur_dst).await?; // create directory
+
+        let mut dir = fs::read_dir(&cur_src).await?;
+        while let Some(entry) = dir.next_entry().await? {
             let src_path = entry.path();
-            let dst_path = dst.join(entry.file_name());
+            let dst_path = cur_dst.join(entry.file_name());
+            let ty = entry.file_type().await?;
 
-            if src_path.is_file() {
-                fs::copy(&src_path, &dst_path)?;
-            } else if src_path.is_dir() {
-                recursively_copy_dir(&src_path, &dst_path)?;
+            if ty.is_file() {
+                fs::copy(&src_path, &dst_path).await?;
+            } else if ty.is_dir() {
+                // instead of recursion, add to our own stack
+                todo.push_back((src_path, dst_path));
             }
         }
     }
     Ok(())
 }
-
-pub fn move_file(src: &PathBuf, dst: &PathBuf) -> io::Result<()> {
-    let result = recursively_copy_dir(src, dst);
+pub async fn move_file(src: &PathBuf, dst: &PathBuf) -> io::Result<()> {
+    let result = copy_dir_iterative(src, dst).await;
     if result.is_ok() {
         if src.is_file() {
-            fs::remove_file(src)?
+            fs::remove_file(src).await?
         } else {
-            fs::remove_dir_all(src)?
+            fs::remove_dir_all(src).await?
         }
     }
     result
 }
 
-pub fn read_valid_file(path: &PathBuf) -> io::Result<String> {
-    if fs::metadata(path)?.len() == 0 {
+pub async fn read_valid_file(path: &PathBuf) -> io::Result<String> {
+    if fs::metadata(path).await?.len() == 0 {
         Ok("Empty File".to_string())
     } else {
-        fs::read_to_string(path)
+        fs::read_to_string(path).await
     }
 }
 
@@ -98,14 +109,16 @@ pub fn mode_to_string(mode: u32) -> String {
     result
 }
 
-pub fn get_state_data(
+pub async fn get_state_data(
     start: &PathBuf,
-) -> std::io::Result<(Vec<FsEntry>, Option<PathBuf>, Vec<FsEntry>)> {
-    let entries = list_dir(start)?;
+) -> tokio::io::Result<(Vec<FsEntry>, Option<PathBuf>, Vec<FsEntry>)> {
+    let entries = list_dir(start).await?;
     let parent_path = start.parent().map(|p| p.to_path_buf());
-    let parent_entries = parent_path
-        .as_ref()
-        .map_or_else(Vec::new, |p| list_dir(p).unwrap());
+    let parent_entries = if let Some(ref p) = parent_path {
+        list_dir(p).await?
+    } else {
+        Vec::new()
+    };
     Ok((entries, parent_path, parent_entries))
 }
 
