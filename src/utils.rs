@@ -7,7 +7,6 @@ use ratatui::{
 };
 use std::collections::VecDeque;
 
-//use std::{fs, io};
 use std::{
     os::unix::fs::MetadataExt,
     path::{Path, PathBuf},
@@ -21,6 +20,7 @@ pub async fn list_dir(p: &PathBuf) -> tokio::io::Result<Vec<FsEntry>> {
     while let Some(entry) = rd.next_entry().await? {
         let meta = entry.metadata().await?;
         let file_size = meta.size();
+        let file_path = entry.path().canonicalize()?;
         let permission: u32 = meta.mode();
         let file_type = if meta.is_dir() {
             FsEntryType::Directory
@@ -29,6 +29,7 @@ pub async fn list_dir(p: &PathBuf) -> tokio::io::Result<Vec<FsEntry>> {
         };
         let item = FsEntry {
             name: entry.file_name().into_string().unwrap(),
+            entry_path: file_path,
             entry_type: file_type,
             size: file_size,
             file_permission: permission,

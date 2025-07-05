@@ -15,6 +15,7 @@ pub enum FsEntryType {
 #[derive(Debug, Clone, PartialEq)]
 pub struct FsEntry {
     name: String,
+    entry_path: PathBuf,
     entry_type: FsEntryType,
     size: u64,
     file_permission: u32,
@@ -145,7 +146,7 @@ impl FileManager {
 
     async fn delete_selected(&mut self) {
         if let Some(entry) = self.get_selected_index_entry() {
-            let path = self.current_path.join(&entry.name);
+            let path = &entry.entry_path;
             let result = match entry.entry_type {
                 FsEntryType::File => fs::remove_file(&path),
                 FsEntryType::Directory => fs::remove_dir_all(&path),
@@ -179,7 +180,7 @@ impl FileManager {
 
     async fn rename_selected(&mut self, input: &mut str) {
         if let Some(entry) = self.get_selected_index_entry() {
-            let old_path = self.current_path.join(&entry.name);
+            let old_path = &entry.entry_path;
             let new_path = self.current_path.join(input.trim_end_matches('/'));
 
             if fs::rename(&old_path, &new_path).is_ok() {
@@ -250,8 +251,7 @@ impl FileManager {
             }
 
             if let Some(entry) = self.get_selected_index_entry() {
-                self.clipboard.paths =
-                    vec![self.current_path.join(&entry.name).canonicalize().unwrap()];
+                self.clipboard.paths = vec![entry.entry_path.clone()];
             }
         } else {
             self.clipboard.paths = self.get_selected_paths();
@@ -312,14 +312,13 @@ impl FileManager {
     fn get_selected_paths(&self) -> Vec<PathBuf> {
         self.entries
             .iter()
-            .filter(|entry| entry.is_selected)
-            .filter_map(|entry| self.current_path.join(&entry.name).canonicalize().ok())
+            .filter_map(|entry| entry.is_selected.then(|| entry.entry_path.clone()))
             .collect()
     }
 
     async fn refresh_preview(&mut self) {
         if let Some(entry) = self.get_selected_index_entry() {
-            let path = self.current_path.join(&entry.name);
+            let path = entry.entry_path.clone();
             match entry.entry_type {
                 FsEntryType::Directory => match utils::list_dir(&path).await {
                     Ok(items) => self.refresh_preview_with_directory(items).await,
