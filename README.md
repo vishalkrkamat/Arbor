@@ -7,7 +7,7 @@ Arbor is an interactive, three-pane terminal-based file manager built using Rust
 
 * **📊 Three-Pane Layout:** Displays Parent Directory, Current Directory, and a Preview pane (showing subdirectory contents or file previews).
 * **📂 Navigate Directories:** Seamlessly move between directories.
-* **📄 File Preview:** View contents of text files directly in the terminal. Detects binary files.(Lots of file format has to be added for better preview underdeveopment)
+* **📄 File Preview:** View contents of text files directly in the terminal. Detects binary files.(Lots of file format has to be added for better preview underdevelopment)
 * **🔼🔽 Smooth Navigation:** Use familiar keybindings (`j`, `k`, `h`, `l`) to move through items and hierarchies.
 * **📝 File Management:**
     * **Delete:** Remove files or directories (with confirmation).
