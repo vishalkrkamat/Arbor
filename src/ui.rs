@@ -15,11 +15,12 @@ use ratatui::{
 
 impl FileManager {
     pub fn render(&mut self, f: &mut Frame) {
-        let selection_state = &mut self.selection;
-        let parent_files = &self.parent_view.entries;
-        let current_entries = &self.entries;
-        let clipboard_action = &self.clipboard.action;
-        let cursor_index = selection_state.selected();
+        let parent_files = self.parent_view_entries();
+        let current_entries = self.entries();
+        let clipboard_action = self.clipboard_actions().clone(); // cloned to avoid re-borrowing
+        let cursor_index = self.selection().selected(); // read-only first
+        let current_path = self.current_path().to_string_lossy(); // Cow<str> clone
+                                                                  //
 
         let list_current_items: Vec<ListItem> = current_entries
             .iter()
@@ -35,7 +36,7 @@ impl FileManager {
                     (" ", Style::default())
                 };
 
-                let icon = match entry.entry_type {
+                let icon = match entry.entry_type() {
                     FsEntryType::Directory => "📁",
                     FsEntryType::File => "📄",
                 };
@@ -46,7 +47,7 @@ impl FileManager {
                     Span::styled(bar, bar_style),
                     Span::raw(" "),
                     Span::styled(
-                        format!("{} {}", icon, entry.name),
+                        format!("{} {}", icon, entry.name()),
                         if is_cursor_row {
                             Style::default()
                                 .bg(Color::Blue)
@@ -63,7 +64,8 @@ impl FileManager {
             .collect();
 
         let list_parent_items: Vec<ListItem> = convert_to_listitems(parent_files);
-        let current_directory = Paragraph::new(self.current_path.to_string_lossy());
+
+        let current_directory = Paragraph::new(current_path);
         let block = Block::bordered().border_type(Rounded).borders(Borders::ALL);
         let empty_lists = Paragraph::new("No Files")
             .alignment(Alignment::Center)
@@ -93,7 +95,8 @@ impl FileManager {
             ])
             .split(main_layout[1]);
 
-        match &self.preview {
+        //let selection_state = self.selection_mut();
+        match &self.preview_mut() {
             PreviewContent::Directory(sub_files) => {
                 let list_sub_items: Vec<ListItem> = convert_to_listitems(sub_files);
 
@@ -136,18 +139,19 @@ impl FileManager {
         if entry_lists.is_empty() {
             f.render_widget(&empty_lists, layout[1]);
         } else {
-            f.render_stateful_widget(entry_lists, layout[1], selection_state);
+            //let selection_state = self.selection_mut();
+            f.render_stateful_widget(entry_lists, layout[1], self.selection_mut());
         }
 
-        if let PopupType::Confirm = &self.popup {
+        if let PopupType::Confirm = &self.popup() {
             let mut confirm_file_list = Paragraph::new("").wrap(Wrap { trim: false });
 
-            match self.mode {
+            match self.mode() {
                 InteractionMode::Normal => {
-                    if let Some(index) = self.selection.selected() {
-                        if let Some(file) = self.entries.get(index) {
-                            let name = file.name.clone();
-                            let path = self.current_path.join(name).to_string_lossy().to_string();
+                    if let Some(index) = self.selection().selected() {
+                        if let Some(file) = self.entries().get(index) {
+                            let name = file.name();
+                            let path = self.current_path().join(name).to_string_lossy().to_string();
 
                             confirm_file_list = Paragraph::new(path)
                                 .alignment(Alignment::Left)
@@ -220,8 +224,8 @@ impl FileManager {
             f.render_widget(options1, section2[1]);
         }
 
-        if let PopupType::Rename = &self.popup {
-            let input = &self.input_buffer;
+        if let PopupType::Rename = &self.popup() {
+            let input = self.input_buffer();
             let input_paragraph = Paragraph::new(input.clone()).block(
                 Block::bordered()
                     .border_type(Rounded)
@@ -235,8 +239,8 @@ impl FileManager {
             f.render_widget(input_paragraph, area);
         }
 
-        if let PopupType::Create = &self.popup {
-            let input = &self.input_buffer;
+        if let PopupType::Create = &self.popup() {
+            let input = self.input_buffer();
             let input_paragraph = Paragraph::new(input.clone()).block(
                 Block::bordered()
                     .border_type(Rounded)
@@ -251,7 +255,7 @@ impl FileManager {
         }
 
         // Render notification if available
-        if let Some(noti) = &self.notify {
+        if let Some(noti) = &self.notify() {
             let area = bottom_right_area(main_layout[1], 35, 5);
 
             let block = Block::bordered()
@@ -259,7 +263,7 @@ impl FileManager {
                 .title("Notification")
                 .style(Style::default().fg(Color::Yellow));
 
-            let text = Paragraph::new(&*noti.message)
+            let text = Paragraph::new(noti.message())
                 .style(Style::default().fg(Color::Yellow))
                 .bg(Color::Black)
                 .alignment(Alignment::Center)
@@ -278,8 +282,8 @@ impl FileManager {
         let mut size_display = Span::raw("");
 
         if let Some(entry) = self.get_selected_index_entry() {
-            if entry.entry_type == FsEntryType::File {
-                let size = format_size(entry.size);
+            if *entry.entry_type() == FsEntryType::File {
+                let size = format_size(entry.size());
                 size_display = Span::styled(
                     format!(" | Size: {}", size),
                     Style::default().fg(Color::LightMagenta),
@@ -287,7 +291,7 @@ impl FileManager {
             }
         }
 
-        let mode_display = match self.mode {
+        let mode_display = match self.mode() {
             InteractionMode::Normal => Span::styled(
                 "🔵 Mode: Normal",
                 Style::default()
@@ -313,7 +317,7 @@ impl FileManager {
 
         let mut per_display = Span::raw("");
         if let Some(entry) = self.get_selected_index_entry() {
-            let permission = entry.file_permission;
+            let permission = entry.file_permission();
 
             let permisson_str = mode_to_string(permission);
             per_display = Span::styled(

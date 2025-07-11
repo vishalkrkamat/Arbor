@@ -27,14 +27,15 @@ pub async fn list_dir(p: &PathBuf) -> tokio::io::Result<Vec<FsEntry>> {
         } else {
             FsEntryType::File
         };
-        let item = FsEntry {
-            name: entry.file_name().into_string().unwrap(),
-            entry_path: file_path,
-            entry_type: file_type,
-            size: file_size,
-            file_permission: permission,
-            is_selected: false,
-        };
+        let item = FsEntry::new(
+            entry.file_name().into_string().unwrap(),
+            file_path,
+            file_type,
+            file_size,
+            permission,
+            false,
+        );
+
         items.push(item);
     }
     Ok(items)
@@ -127,9 +128,9 @@ pub fn convert_to_listitems(f: &[FsEntry]) -> Vec<ListItem> {
     let list_items: Vec<ListItem> = f
         .iter()
         .map(|item| {
-            let display = match item.entry_type {
-                FsEntryType::Directory => format!("📁 {}", item.name),
-                FsEntryType::File => format!("📄 {}", item.name),
+            let display = match item.entry_type() {
+                FsEntryType::Directory => format!("📁 {}", item.name()),
+                FsEntryType::File => format!("📄 {}", item.name()),
             };
             let mut style = Style::default();
             if item.is_selected {
