@@ -76,7 +76,7 @@ impl FileManager {
             let old_path = &entry.entry_path().clone();
             let new_path = self.current_path().join(input.trim_end_matches('/'));
 
-            if fs::rename(&old_path, &new_path).is_ok() {
+            if fs::rename(old_path, &new_path).is_ok() {
                 self.refresh_current_directory(self.current_path().clone())
                     .await;
                 self.mut_input_buffer().clear();
@@ -172,8 +172,8 @@ impl FileManager {
             if src.is_file() {
                 match self.clipboard_actions() {
                     Action::Move => {
-                        if fs::copy(&src, &dst).is_ok() {
-                            if let Err(e) = fs::remove_file(&src) {
+                        if fs::copy(src, dst).is_ok() {
+                            if let Err(e) = fs::remove_file(src) {
                                 self.show_notification(e.to_string())
                             }
                         };
@@ -188,12 +188,12 @@ impl FileManager {
             } else if src.is_dir() {
                 match self.clipboard_actions() {
                     Action::Move => {
-                        if let Err(e) = move_file(&src, &dst).await {
+                        if let Err(e) = move_file(src, &dst).await {
                             self.show_notification(e.to_string())
                         }
                     }
                     Action::Copy => {
-                        if let Err(e) = copy_dir_iterative(&src, &dst).await {
+                        if let Err(e) = copy_dir_iterative(src, &dst).await {
                             self.show_notification(e.to_string())
                         }
                     }
@@ -298,7 +298,7 @@ impl FileManager {
         if let Some(entry) = self.get_selected_index_entry_unmut() {
             if let FsEntryType::Directory = entry.entry_type() {
                 let mut path = self.current_path().clone();
-                path.push(&entry.name());
+                path.push(entry.name());
                 self.refresh_current_directory(path).await;
                 //self.parent_view().selection = self.selection().clone();
                 self.parent_view_mut().set_selection(selection);
@@ -339,7 +339,7 @@ impl FileManager {
     fn get_selected_index_entry_unmut(&self) -> Option<&FsEntry> {
         self.selection()
             .selected()
-            .and_then(|index| self.entries().get(index).clone())
+            .and_then(|index| self.entries().get(index))
     }
 }
 

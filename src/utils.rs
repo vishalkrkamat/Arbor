@@ -64,7 +64,7 @@ pub async fn copy_dir_iterative(src: &Path, dst: &Path) -> io::Result<()> {
     }
     Ok(())
 }
-pub async fn move_file(src: &PathBuf, dst: &PathBuf) -> io::Result<()> {
+pub async fn move_file(src: &Path, dst: &Path) -> io::Result<()> {
     let result = copy_dir_iterative(src, dst).await;
     if result.is_ok() {
         if src.is_file() {
