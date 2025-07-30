@@ -26,7 +26,7 @@ impl FileManager {
     }
 
     async fn process_key(&mut self, key: KeyEvent) -> std::io::Result<bool> {
-        let mut buffer = self.input_buffer().clone(); // only immutable borrow
+        let mut buffer = self.input_buffer().clone();
         match self.popup() {
             PopupType::Confirm => {
                 match key.code {
@@ -74,7 +74,7 @@ impl FileManager {
             InteractionMode::Normal => {
                 use KeyCode::*;
                 match key.code {
-                    Char('q') => return Ok(true), // ← quit
+                    Char('q') => return Ok(true),
                     Char('j') => self.navigate_down().await,
                     Char('k') => self.navigate_up().await,
                     Char('h') => self.navigate_to_parent().await,

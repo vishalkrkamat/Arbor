@@ -57,7 +57,6 @@ pub async fn copy_dir_iterative(src: &Path, dst: &Path) -> io::Result<()> {
             if ty.is_file() {
                 fs::copy(&src_path, &dst_path).await?;
             } else if ty.is_dir() {
-                // instead of recursion, add to our own stack
                 todo.push_back((src_path, dst_path));
             }
         }

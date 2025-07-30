@@ -17,10 +17,9 @@ impl FileManager {
     pub fn render(&mut self, f: &mut Frame) {
         let parent_files = self.parent_view_entries();
         let current_entries = self.entries();
-        let clipboard_action = self.clipboard_actions().clone(); // cloned to avoid re-borrowing
-        let cursor_index = self.selection().selected(); // read-only first
-        let current_path = self.current_path().to_string_lossy(); // Cow<str> clone
-                                                                  //
+        let clipboard_action = self.clipboard_actions().clone();
+        let cursor_index = self.selection().selected();
+        let current_path = self.current_path().to_string_lossy();
 
         let list_current_items: Vec<ListItem> = current_entries
             .iter()
@@ -79,9 +78,7 @@ impl FileManager {
         .split(f.area());
 
         let entry_lists = List::new(list_current_items)
-            .highlight_style(
-                Style::default().bg(Color::Blue), //     .fg(Color::Black)
-            )
+            .highlight_style(Style::default().bg(Color::Blue))
             .add_modifier(Modifier::BOLD)
             .block(block.clone());
         let list_parent_files = List::new(list_parent_items).block(block.clone());
@@ -95,7 +92,6 @@ impl FileManager {
             ])
             .split(main_layout[1]);
 
-        //let selection_state = self.selection_mut();
         match &self.preview_mut() {
             PreviewContent::Directory(sub_files) => {
                 let list_sub_items: Vec<ListItem> = convert_to_listitems(sub_files);
@@ -139,7 +135,6 @@ impl FileManager {
         if entry_lists.is_empty() {
             f.render_widget(&empty_lists, layout[1]);
         } else {
-            //let selection_state = self.selection_mut();
             f.render_stateful_widget(entry_lists, layout[1], self.selection_mut());
         }
 
