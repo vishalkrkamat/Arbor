@@ -2,7 +2,8 @@ mod event_handler;
 mod ui;
 mod utils;
 use ratatui::widgets::ListState;
-use std::{fs, path::PathBuf};
+use std::path::{Path, PathBuf};
+use tokio::fs;
 use utils::{copy_dir_iterative, get_state_data, move_file};
 mod modals;
 use crate::modals::{
@@ -41,8 +42,9 @@ impl FileManager {
         if let Some(entry) = self.get_selected_index_entry() {
             let path = entry.entry_path().clone();
             let result = match entry.entry_type() {
-                FsEntryType::File => fs::remove_file(&path),
-                FsEntryType::Directory => fs::remove_dir_all(&path),
+                FsEntryType::File => fs::remove_file(&path).await,
+                FsEntryType::Directory => fs::remove_dir_all(&path).await,
+                FsEntryType::Symlink => fs::remove_file(&path).await,
             };
 
             if result.is_ok() {
@@ -51,7 +53,7 @@ impl FileManager {
                     .await;
                 self.refresh_preview().await;
             } else if let Err(err) = result {
-                self.set_notify(format!("Failed to delete {:?}: {}", path, err));
+                self.set_notify(format!("Failed to delete {path:?}: {err}"));
             }
         }
     }
@@ -59,9 +61,9 @@ impl FileManager {
     async fn delete_multiple(&mut self) {
         for path in self.get_selected_paths() {
             let _ = if path.is_file() {
-                fs::remove_file(path)
+                fs::remove_file(path).await
             } else {
-                fs::remove_dir_all(path)
+                fs::remove_dir_all(path).await
             };
         }
 
@@ -76,7 +78,7 @@ impl FileManager {
             let old_path = &entry.entry_path().clone();
             let new_path = self.current_path().join(input.trim_end_matches('/'));
 
-            if fs::rename(old_path, &new_path).is_ok() {
+            if fs::rename(old_path, &new_path).await.is_ok() {
                 self.refresh_current_directory(self.current_path().clone())
                     .await;
                 self.mut_input_buffer().clear();
@@ -96,7 +98,7 @@ impl FileManager {
                 path.push(segment);
             }
 
-            if let Err(e) = fs::create_dir_all(&path) {
+            if let Err(e) = fs::create_dir_all(&path).await {
                 self.show_notification(format!("Error creating directories: {e}"));
                 return;
             }
@@ -112,14 +114,14 @@ impl FileManager {
     }
 
     async fn create_directory(&mut self, path: PathBuf) {
-        match fs::create_dir_all(&path) {
+        match fs::create_dir_all(&path).await {
             Ok(_) => self.on_create_success().await,
             Err(e) => self.show_notification(e.to_string()),
         }
     }
 
     async fn create_file(&mut self, path: PathBuf) {
-        match fs::File::create(&path) {
+        match fs::File::create(&path).await {
             Ok(_) => self.on_create_success().await,
             Err(e) => self.show_notification(e.to_string()),
         }
@@ -172,14 +174,14 @@ impl FileManager {
             if src.is_file() {
                 match self.clipboard_actions() {
                     Action::Move => {
-                        if fs::copy(src, dst).is_ok() {
-                            if let Err(e) = fs::remove_file(src) {
+                        if fs::copy(src, dst).await.is_ok() {
+                            if let Err(e) = fs::remove_file(src).await {
                                 self.show_notification(e.to_string())
                             }
                         };
                     }
                     Action::Copy => {
-                        if let Err(e) = fs::copy(src, &dst) {
+                        if let Err(e) = fs::copy(src, &dst).await {
                             self.show_notification(e.to_string())
                         }
                     }
@@ -209,7 +211,7 @@ impl FileManager {
     fn get_selected_paths(&self) -> Vec<PathBuf> {
         self.entries()
             .iter()
-            .filter_map(|entry| entry.is_selected.then(|| entry.entry_path().clone()))
+            .filter(|&entry| entry.is_selected).map(|entry| entry.entry_path().clone())
             .collect()
     }
 
@@ -226,6 +228,24 @@ impl FileManager {
                     Ok(text) => self.refresh_preview_with_text_file(text).await,
                     Err(e) => self.refresh_preview_with_binary_file(e.to_string()),
                 },
+
+                FsEntryType::Symlink => {
+                    if let Some(target_path) = self.symlink_resolver(&path).await {
+                        if target_path.is_dir() {
+                            match utils::list_dir(&target_path).await {
+                                Ok(items) => self.refresh_preview_with_directory(items).await,
+                                Err(e) => self.show_notification(e.to_string()),
+                            }
+                        } else {
+                            match utils::read_valid_file(&target_path).await {
+                                Ok(text) => self.refresh_preview_with_text_file(text).await,
+                                Err(e) => self.refresh_preview_with_binary_file(e.to_string()),
+                            }
+                        }
+                    } else {
+                        self.show_notification("Broken symlink".to_string());
+                    }
+                }
             }
         }
     }
@@ -293,18 +313,58 @@ impl FileManager {
         }
     }
 
+    async fn symlink_resolver(&mut self, symlink_path: &Path) -> Option<PathBuf> {
+        match tokio::fs::read_link(symlink_path).await {
+            Ok(target) => {
+                let symlink_parent = symlink_path
+                    .parent()
+                    .unwrap_or_else(|| std::path::Path::new("/"));
+
+                let full_target = if target.is_relative() {
+                    symlink_parent.join(target)
+                } else {
+                    target
+                };
+
+                match tokio::fs::canonicalize(&full_target).await {
+                    Ok(resolved) => Some(resolved),
+                    Err(e) => {
+                        self.show_notification(e.to_string());
+                        None
+                    }
+                }
+            }
+            Err(e) => {
+                self.show_notification(e.to_string());
+                None
+            }
+        }
+    }
+
     async fn navigate_to_child(&mut self) {
         let selection = self.selection().clone();
         if let Some(entry) = self.get_selected_index_entry_unmut() {
-            if let FsEntryType::Directory = entry.entry_type() {
+            if entry.entry_type() == &FsEntryType::Directory {
                 let mut path = self.current_path().clone();
                 path.push(entry.name());
                 self.refresh_current_directory(path).await;
-                //self.parent_view().selection = self.selection().clone();
                 self.parent_view_mut().set_selection(selection);
-                //self.selection = ListState::default().with_selected(Some(0));
                 self.set_selection(ListState::default().with_selected(Some(0)));
                 self.refresh_preview().await;
+            } else if entry.entry_type() == &FsEntryType::Symlink {
+                let mut path = self.current_path().clone();
+                path.push(entry.name());
+
+                if let Some(target_path) = self.symlink_resolver(&path).await {
+                    if target_path.is_dir() {
+                        self.refresh_current_directory(target_path).await;
+                        self.parent_view_mut().set_selection(selection);
+                        self.set_selection(ListState::default().with_selected(Some(0)));
+                        self.refresh_preview().await;
+                    } else {
+                        self.refresh_preview().await;
+                    }
+                }
             }
         }
     }

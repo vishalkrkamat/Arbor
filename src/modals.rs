@@ -8,6 +8,7 @@ use std::time::Instant;
 pub enum FsEntryType {
     File,
     Directory,
+    Symlink,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -183,11 +184,6 @@ impl FileManager {
         &mut self.clipboard
     }
 
-    // pub fn clipboard_path(&self) -> &Vec<PathBuf> {
-    //     &self.clipboard.paths
-    // }
-    //
-
     pub fn clipboard_actions(&self) -> &Action {
         &self.clipboard.action
     }
@@ -295,10 +291,6 @@ impl FsEntry {
             is_selected,
         }
     }
-
-    // pub fn set_name(&mut self, name: String) {
-    //     self.name = name
-    // }
 }
 impl Notification {
     pub fn created_at(&self) -> Instant {

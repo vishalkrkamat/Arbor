@@ -18,12 +18,14 @@ pub async fn list_dir(p: &PathBuf) -> tokio::io::Result<Vec<FsEntry>> {
     let mut items = Vec::new();
 
     while let Some(entry) = rd.next_entry().await? {
-        let meta = entry.metadata().await?;
+        let file_path = entry.path();
+        let meta = fs::symlink_metadata(&file_path).await?;
         let file_size = meta.size();
-        let file_path = entry.path().canonicalize()?;
         let permission: u32 = meta.mode();
         let file_type = if meta.is_dir() {
             FsEntryType::Directory
+        } else if meta.file_type().is_symlink() {
+            FsEntryType::Symlink
         } else {
             FsEntryType::File
         };
@@ -130,6 +132,7 @@ pub fn convert_to_listitems(f: &[FsEntry]) -> Vec<ListItem> {
             let display = match item.entry_type() {
                 FsEntryType::Directory => format!("📁 {}", item.name()),
                 FsEntryType::File => format!("📄 {}", item.name()),
+                FsEntryType::Symlink => format!("🔗{}", item.name()),
             };
             let mut style = Style::default();
             if item.is_selected {
@@ -157,7 +160,7 @@ pub fn format_size(size: u64) -> String {
     } else if size_f >= KB {
         format!("{:.2} KB", size_f / KB)
     } else {
-        format!("{} B", size)
+        format!("{size} B")
     }
 }
 

@@ -38,6 +38,7 @@ impl FileManager {
                 let icon = match entry.entry_type() {
                     FsEntryType::Directory => "📁",
                     FsEntryType::File => "📄",
+                    FsEntryType::Symlink => "🔗",
                 };
 
                 let is_cursor_row = cursor_index == Some(index);
@@ -280,7 +281,7 @@ impl FileManager {
             if *entry.entry_type() == FsEntryType::File {
                 let size = format_size(entry.size());
                 size_display = Span::styled(
-                    format!(" | Size: {}", size),
+                    format!(" | Size: {size}"),
                     Style::default().fg(Color::LightMagenta),
                 );
             }
@@ -316,7 +317,7 @@ impl FileManager {
 
             let permisson_str = mode_to_string(permission);
             per_display = Span::styled(
-                format!("Permisson: {} ", permisson_str),
+                format!("Permisson: {permisson_str} "),
                 Style::default().fg(Color::LightCyan),
             );
         }
