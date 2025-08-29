@@ -1,4 +1,5 @@
 use crate::get_state_data;
+use mime_guess::Mime;
 use ratatui::widgets::ListState;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -19,6 +20,7 @@ pub struct FsEntry {
     size: u64,
     file_permission: u32,
     pub is_selected: bool,
+    mime: Option<Mime>,
 }
 
 #[derive(Debug, Clone)]
@@ -240,6 +242,9 @@ impl FsEntry {
     pub fn size(&self) -> u64 {
         self.size
     }
+    pub fn mime_type(&self) -> &Option<Mime> {
+        &self.mime
+    }
 }
 
 impl Notification {
@@ -281,6 +286,7 @@ impl FsEntry {
         size: u64,
         file_permission: u32,
         is_selected: bool,
+        mime: Option<Mime>,
     ) -> Self {
         Self {
             name,
@@ -289,6 +295,7 @@ impl FsEntry {
             size,
             file_permission,
             is_selected,
+            mime,
         }
     }
 }

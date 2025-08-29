@@ -1,10 +1,12 @@
 mod event_handler;
+use anyhow::Result;
 mod ui;
 mod utils;
 use ratatui::widgets::ListState;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use utils::{copy_dir_iterative, get_state_data, move_file};
+use zip::ZipArchive;
 mod modals;
 use crate::modals::{
     Action, FileContent, FileManager, FsEntry, FsEntryType, InteractionMode, PopupType,
@@ -211,7 +213,8 @@ impl FileManager {
     fn get_selected_paths(&self) -> Vec<PathBuf> {
         self.entries()
             .iter()
-            .filter(|&entry| entry.is_selected).map(|entry| entry.entry_path().clone())
+            .filter(|&entry| entry.is_selected)
+            .map(|entry| entry.entry_path().clone())
             .collect()
     }
 
@@ -287,6 +290,46 @@ impl FileManager {
         self.selection_mut().select_previous();
         self.select_current().await;
         self.refresh_preview().await;
+    }
+
+    async fn operation(&mut self) -> Result<()> {
+        let current_dir = self.current_path().clone();
+        if let Some(entry) = self.get_selected_index_entry() {
+            let filepath = entry.entry_path().to_owned();
+
+            if entry
+                .mime_type()
+                .clone()
+                .is_some_and(|mime| mime.subtype() == "zip")
+            {
+                let result = tokio::task::spawn_blocking(move || {
+                    let file = std::fs::File::open(&filepath)?;
+                    let mut archive = ZipArchive::new(file)?;
+                    archive.extract(current_dir)?;
+                    Ok::<_, zip::result::ZipError>(())
+                })
+                .await;
+
+                match result {
+                    Ok(inner) => match inner {
+                        Ok(_) => {
+                            self.refresh_current_directory(self.current_path().clone())
+                                .await;
+                            self.show_notification("✅ Zip extracted".to_string());
+                        }
+                        Err(e) => {
+                            self.show_notification(format!("❌ Zip error: {e}"));
+                        }
+                    },
+                    // task itself failed (panicked or cancelled)
+                    Err(e) => {
+                        self.show_notification(format!("❌ Task failed: {e}"));
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 
     fn update_parent_selection(&mut self) {
@@ -404,7 +447,7 @@ impl FileManager {
 }
 
 #[tokio::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> Result<()> {
     let terminal = ratatui::init();
 
     let start_dir = PathBuf::from(".");

@@ -10,8 +10,10 @@ keywords = ["file-manager", "terminal", "tui", "cli", "rust"]
 categories = ["command-line-utilities"]
 
 [dependencies]
+anyhow = "1.0.99"
 crossterm = "0.28.1"
 hex = "0.4.3"
+mime_guess = "2.0.5"
 ratatui = "0.29.0"
 tokio = {version = "1.45.1",features = ["full"] }
 zip = "4.2.0"

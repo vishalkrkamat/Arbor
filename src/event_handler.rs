@@ -1,10 +1,11 @@
 use crate::{FileManager, InteractionMode, PopupType};
+use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent};
 use ratatui::DefaultTerminal;
 use tokio::time::{interval, Duration};
 
 impl FileManager {
-    pub async fn run(mut self, mut terminal: DefaultTerminal) -> std::io::Result<()> {
+    pub async fn run(mut self, mut terminal: DefaultTerminal) -> Result<()> {
         let mut tick = interval(Duration::from_millis(16));
 
         loop {
@@ -25,7 +26,7 @@ impl FileManager {
         }
     }
 
-    async fn process_key(&mut self, key: KeyEvent) -> std::io::Result<bool> {
+    async fn process_key(&mut self, key: KeyEvent) -> Result<bool> {
         let mut buffer = self.input_buffer().clone();
         match self.popup() {
             PopupType::Confirm => {
@@ -86,6 +87,7 @@ impl FileManager {
                     Char('x') => self.move_selected_entries().await,
                     Char('p') => self.paste_clipboard().await,
                     Esc => self.deselect_all().await,
+                    Enter => self.operation().await?,
                     Char('v') => {
                         self.set_mode(InteractionMode::MultiSelect);
                         if let Some(idx) = self.selection().selected() {

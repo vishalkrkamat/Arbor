@@ -1,4 +1,5 @@
 use crate::{FsEntry, FsEntryType};
+use mime_guess::Mime;
 use ratatui::{
     layout::{Constraint, Flex, Layout, Rect},
     style::{Color, Style},
@@ -29,6 +30,7 @@ pub async fn list_dir(p: &PathBuf) -> tokio::io::Result<Vec<FsEntry>> {
         } else {
             FsEntryType::File
         };
+        let mimetype = get_mime(&file_path).await;
         let item = FsEntry::new(
             entry.file_name().into_string().unwrap(),
             file_path,
@@ -36,6 +38,7 @@ pub async fn list_dir(p: &PathBuf) -> tokio::io::Result<Vec<FsEntry>> {
             file_size,
             permission,
             false,
+            mimetype,
         );
 
         items.push(item);
@@ -65,6 +68,7 @@ pub async fn copy_dir_iterative(src: &Path, dst: &Path) -> io::Result<()> {
     }
     Ok(())
 }
+
 pub async fn move_file(src: &Path, dst: &Path) -> io::Result<()> {
     let result = copy_dir_iterative(src, dst).await;
     if result.is_ok() {
@@ -75,6 +79,10 @@ pub async fn move_file(src: &Path, dst: &Path) -> io::Result<()> {
         }
     }
     result
+}
+
+pub async fn get_mime(src: &Path) -> Option<Mime> {
+    mime_guess::from_path(src).first()
 }
 
 pub async fn read_valid_file(path: &PathBuf) -> io::Result<String> {
