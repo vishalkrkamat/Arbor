@@ -6,6 +6,7 @@ use ratatui::{
     text::Span,
     widgets::ListItem,
 };
+use std::cmp::Ordering;
 use std::collections::VecDeque;
 
 use std::{
@@ -43,9 +44,22 @@ pub async fn list_dir(p: &PathBuf) -> tokio::io::Result<Vec<FsEntry>> {
 
         items.push(item);
     }
+    sort_entries(&mut items).await;
     Ok(items)
 }
-
+async fn sort_entries(entries: &mut [FsEntry]) {
+    entries.sort_by(|a, b| match (a.entry_type(), b.entry_type()) {
+        (FsEntryType::Directory, FsEntryType::Directory) => Ordering::Equal,
+        (FsEntryType::Directory, FsEntryType::File) => Ordering::Less,
+        (FsEntryType::Directory, FsEntryType::Symlink) => Ordering::Less,
+        (FsEntryType::File, FsEntryType::Directory) => Ordering::Greater,
+        (FsEntryType::File, FsEntryType::File) => Ordering::Equal,
+        (FsEntryType::File, FsEntryType::Symlink) => Ordering::Less,
+        (FsEntryType::Symlink, FsEntryType::Directory) => Ordering::Greater,
+        (FsEntryType::Symlink, FsEntryType::File) => Ordering::Greater,
+        (FsEntryType::Symlink, FsEntryType::Symlink) => Ordering::Equal,
+    });
+}
 pub async fn copy_dir_iterative(src: &Path, dst: &Path) -> io::Result<()> {
     let mut todo = VecDeque::new();
     todo.push_back((src.to_path_buf(), dst.to_path_buf()));
