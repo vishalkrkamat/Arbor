@@ -202,7 +202,6 @@ impl FileManager {
                 .iter()
                 .position(|entry| entry.name() == current_name)
             {
-                //self.parent_view().selection_mut = ListState::default().with_selected(Some(index));
                 self.parent_view_mut()
                     .set_selection(ListState::default().with_selected(Some(index)));
             }
@@ -212,7 +211,6 @@ impl FileManager {
     async fn navigate_to_parent(&mut self) {
         if let Some(ref parent_path) = self.parent_view().path() {
             self.refresh_current_directory(parent_path.clone()).await;
-            //self.selection = self.parent_view().selection().clone();
             self.set_selection(self.parent_view().selection().clone());
             self.refresh_preview().await;
         }
